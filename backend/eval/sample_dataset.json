@@ -1,0 +1,755 @@
+{
+ "_note": "SYNTHETIC data for testing the evaluation pipeline only. Metrics on it say nothing about real-world accuracy.",
+ "cases": [
+  {
+   "id": "synthetic-1",
+   "identity": {
+    "name": "Priya Sharma",
+    "company": "Infosys",
+    "college": "IIT Delhi",
+    "role": "Data Scientist"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Priya Sharma",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Priya Sharma",
+       "evidence": "Priya Sharma",
+       "source": {
+        "url": "https://synthetic.example/1",
+        "title": "site1.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Infosys",
+       "evidence": "Infosys",
+       "source": {
+        "url": "https://synthetic.example/1",
+        "title": "site1.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "IIT Delhi",
+       "evidence": "IIT Delhi",
+       "source": {
+        "url": "https://synthetic.example/2",
+        "title": "site2.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Data Scientist",
+       "evidence": "Data Scientist",
+       "source": {
+        "url": "https://synthetic.example/1",
+        "title": "site1.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Priya Sharma",
+       "evidence": "Priya Sharma",
+       "source": {
+        "url": "https://synthetic.example/2",
+        "title": "site2.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Priya Sharma",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Priya Sharma",
+       "evidence": "Priya Sharma",
+       "source": {
+        "url": "https://synthetic.example/3",
+        "title": "site3.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/3",
+        "title": "site3.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/3",
+        "title": "site3.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Priya Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Priya Verma",
+       "evidence": "Priya Verma",
+       "source": {
+        "url": "https://synthetic.example/4",
+        "title": "site4.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Infosys",
+       "evidence": "Infosys",
+       "source": {
+        "url": "https://synthetic.example/4",
+        "title": "site4.example"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "synthetic-2",
+   "identity": {
+    "name": "Rohan Mehta",
+    "company": "TCS",
+    "college": "NIT Trichy",
+    "role": "Backend Developer"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Rohan Mehta",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Rohan Mehta",
+       "evidence": "Rohan Mehta",
+       "source": {
+        "url": "https://synthetic.example/11",
+        "title": "site11.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "TCS",
+       "evidence": "TCS",
+       "source": {
+        "url": "https://synthetic.example/11",
+        "title": "site11.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "NIT Trichy",
+       "evidence": "NIT Trichy",
+       "source": {
+        "url": "https://synthetic.example/12",
+        "title": "site12.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Backend Developer",
+       "evidence": "Backend Developer",
+       "source": {
+        "url": "https://synthetic.example/11",
+        "title": "site11.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Rohan Mehta",
+       "evidence": "Rohan Mehta",
+       "source": {
+        "url": "https://synthetic.example/12",
+        "title": "site12.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Rohan Mehta",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Rohan Mehta",
+       "evidence": "Rohan Mehta",
+       "source": {
+        "url": "https://synthetic.example/13",
+        "title": "site13.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/13",
+        "title": "site13.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/13",
+        "title": "site13.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Rohan Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Rohan Verma",
+       "evidence": "Rohan Verma",
+       "source": {
+        "url": "https://synthetic.example/14",
+        "title": "site14.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "TCS",
+       "evidence": "TCS",
+       "source": {
+        "url": "https://synthetic.example/14",
+        "title": "site14.example"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "synthetic-3",
+   "identity": {
+    "name": "Sara Khan",
+    "company": "Zomato",
+    "college": "Delhi University",
+    "role": "Product Manager"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Sara Khan",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Sara Khan",
+       "evidence": "Sara Khan",
+       "source": {
+        "url": "https://synthetic.example/21",
+        "title": "site21.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Zomato",
+       "evidence": "Zomato",
+       "source": {
+        "url": "https://synthetic.example/21",
+        "title": "site21.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "Delhi University",
+       "evidence": "Delhi University",
+       "source": {
+        "url": "https://synthetic.example/22",
+        "title": "site22.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Product Manager",
+       "evidence": "Product Manager",
+       "source": {
+        "url": "https://synthetic.example/21",
+        "title": "site21.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Sara Khan",
+       "evidence": "Sara Khan",
+       "source": {
+        "url": "https://synthetic.example/22",
+        "title": "site22.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Sara Khan",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Sara Khan",
+       "evidence": "Sara Khan",
+       "source": {
+        "url": "https://synthetic.example/23",
+        "title": "site23.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/23",
+        "title": "site23.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/23",
+        "title": "site23.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Sara Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Sara Verma",
+       "evidence": "Sara Verma",
+       "source": {
+        "url": "https://synthetic.example/24",
+        "title": "site24.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Zomato",
+       "evidence": "Zomato",
+       "source": {
+        "url": "https://synthetic.example/24",
+        "title": "site24.example"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "synthetic-4",
+   "identity": {
+    "name": "Vikram Rao",
+    "company": "Flipkart",
+    "college": "BITS Pilani",
+    "role": "Software Engineer"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Vikram Rao",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Vikram Rao",
+       "evidence": "Vikram Rao",
+       "source": {
+        "url": "https://synthetic.example/31",
+        "title": "site31.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Flipkart",
+       "evidence": "Flipkart",
+       "source": {
+        "url": "https://synthetic.example/31",
+        "title": "site31.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "BITS Pilani",
+       "evidence": "BITS Pilani",
+       "source": {
+        "url": "https://synthetic.example/32",
+        "title": "site32.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Software Engineer",
+       "evidence": "Software Engineer",
+       "source": {
+        "url": "https://synthetic.example/31",
+        "title": "site31.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Vikram Rao",
+       "evidence": "Vikram Rao",
+       "source": {
+        "url": "https://synthetic.example/32",
+        "title": "site32.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Vikram Rao",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Vikram Rao",
+       "evidence": "Vikram Rao",
+       "source": {
+        "url": "https://synthetic.example/33",
+        "title": "site33.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/33",
+        "title": "site33.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/33",
+        "title": "site33.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Vikram Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Vikram Verma",
+       "evidence": "Vikram Verma",
+       "source": {
+        "url": "https://synthetic.example/34",
+        "title": "site34.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Flipkart",
+       "evidence": "Flipkart",
+       "source": {
+        "url": "https://synthetic.example/34",
+        "title": "site34.example"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "synthetic-5",
+   "identity": {
+    "name": "Neha Gupta",
+    "company": "WASP3D",
+    "college": "GL Bajaj Institute of Technology and Management",
+    "role": "UI Designer"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Neha Gupta",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Neha Gupta",
+       "evidence": "Neha Gupta",
+       "source": {
+        "url": "https://synthetic.example/41",
+        "title": "site41.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "WASP3D",
+       "evidence": "WASP3D",
+       "source": {
+        "url": "https://synthetic.example/41",
+        "title": "site41.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "GL Bajaj Institute of Technology and Management",
+       "evidence": "GL Bajaj Institute of Technology and Management",
+       "source": {
+        "url": "https://synthetic.example/42",
+        "title": "site42.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "UI Designer",
+       "evidence": "UI Designer",
+       "source": {
+        "url": "https://synthetic.example/41",
+        "title": "site41.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Neha Gupta",
+       "evidence": "Neha Gupta",
+       "source": {
+        "url": "https://synthetic.example/42",
+        "title": "site42.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Neha Gupta",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Neha Gupta",
+       "evidence": "Neha Gupta",
+       "source": {
+        "url": "https://synthetic.example/43",
+        "title": "site43.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/43",
+        "title": "site43.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/43",
+        "title": "site43.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Neha Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Neha Verma",
+       "evidence": "Neha Verma",
+       "source": {
+        "url": "https://synthetic.example/44",
+        "title": "site44.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "WASP3D",
+       "evidence": "WASP3D",
+       "source": {
+        "url": "https://synthetic.example/44",
+        "title": "site44.example"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "synthetic-6",
+   "identity": {
+    "name": "Arjun Nair",
+    "company": "Swiggy",
+    "college": "IIIT Hyderabad",
+    "role": "SRE"
+   },
+   "candidates": [
+    {
+     "candidate_id": "C001",
+     "display_name": "Arjun Nair",
+     "platform": "professional_profile",
+     "label": 1,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Arjun Nair",
+       "evidence": "Arjun Nair",
+       "source": {
+        "url": "https://synthetic.example/51",
+        "title": "site51.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Swiggy",
+       "evidence": "Swiggy",
+       "source": {
+        "url": "https://synthetic.example/51",
+        "title": "site51.example"
+       }
+      },
+      {
+       "field": "college",
+       "value": "IIIT Hyderabad",
+       "evidence": "IIIT Hyderabad",
+       "source": {
+        "url": "https://synthetic.example/52",
+        "title": "site52.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "SRE",
+       "evidence": "SRE",
+       "source": {
+        "url": "https://synthetic.example/51",
+        "title": "site51.example"
+       }
+      },
+      {
+       "field": "name",
+       "value": "Arjun Nair",
+       "evidence": "Arjun Nair",
+       "source": {
+        "url": "https://synthetic.example/52",
+        "title": "site52.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C002",
+     "display_name": "Arjun Nair",
+     "platform": "news",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Arjun Nair",
+       "evidence": "Arjun Nair",
+       "source": {
+        "url": "https://synthetic.example/53",
+        "title": "site53.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Unrelated Traders",
+       "evidence": "Unrelated Traders",
+       "source": {
+        "url": "https://synthetic.example/53",
+        "title": "site53.example"
+       }
+      },
+      {
+       "field": "role",
+       "value": "Accountant",
+       "evidence": "Accountant",
+       "source": {
+        "url": "https://synthetic.example/53",
+        "title": "site53.example"
+       }
+      }
+     ]
+    },
+    {
+     "candidate_id": "C003",
+     "display_name": "Arjun Verma",
+     "platform": "web",
+     "label": 0,
+     "claims": [
+      {
+       "field": "name",
+       "value": "Arjun Verma",
+       "evidence": "Arjun Verma",
+       "source": {
+        "url": "https://synthetic.example/54",
+        "title": "site54.example"
+       }
+      },
+      {
+       "field": "company",
+       "value": "Swiggy",
+       "evidence": "Swiggy",
+       "source": {
+        "url": "https://synthetic.example/54",
+        "title": "site54.example"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
