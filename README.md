@@ -106,6 +106,24 @@ frontend/                   Next.js 16 + TypeScript UI (backend-for-frontend pro
 
 ---
 
+## ✅ What is implemented (frontend)
+
+Next.js 16 + TypeScript. Details are in [frontend/README.md](frontend/README.md).
+
+- **Login flow.** Covers first-account setup, sign in, and the MFA code step.
+- **Session security.** The refresh token is kept only in an **httpOnly, SameSite=Strict cookie**. The access token lives in memory only. Session endpoints check the Origin header against CSRF.
+- **Pages.**
+  - Dashboard: my searches (who → whom, when, case, purpose, status) and my cases.
+  - Searches: live progress, candidates with **"Why N?"**, contradictions, cited evidence (opening it is audited), reviewer verdicts, **evidence graph**, **ask the evidence**, agent trace.
+  - Cases: incidents (with AI indicators and "find public profile of @handle"), evidence (text / public URL / file, SHA-256, integrity verify, download), searches in the case, **evidence timeline**, access (grant/revoke, time limits, access history), reports (with hashes).
+  - Security: dashboard, security events (acknowledge / resolve), break-glass approvals, audit log viewer with **hash-chain verification**.
+  - Admin: users and roles, MFA reset, evaluation, calibration, retention.
+  - Account: MFA enrolment.
+- **Reports.** Rendered in a **sandboxed iframe** (no scripts). PDF export needs the `evidence.export` permission and is audited.
+- **Browser hardening.** Security headers (CSP, frame-ancestors none, HSTS, nosniff) and no `X-Powered-By` header.
+
+---
+
 ## ▶️ Run locally
 
 ```powershell
@@ -120,18 +138,56 @@ npm install
 $env:BACKEND_URL="http://localhost:8000"; npm run dev
 ```
 
+Open http://localhost:3000. The first account you create becomes `super_admin`.
+
+---
+
+## 🚀 Deploy on Railway (aapko khud karna hai)
+
+Claude could not log in to your Railway account, so these steps are manual (~10 minutes). The repo is already set up for it: each service has a `Dockerfile` and a `railway.json` with a health check.
+
+1. Go to https://railway.com, then **New Project → Deploy from GitHub repo → `Amirchoudhary09/fraud`**.
+2. Create the **backend** service:
+   - Settings → **Root Directory** = `backend`
+   - Settings → **Volumes** → add a volume mounted at `/data`. It holds the databases, the encrypted evidence and the audit log.
+   - Variables:
+     ```
+     GEMINI_API_KEY=<your key>
+     JWT_SECRET=<python -c "import secrets;print(secrets.token_urlsafe(48))">
+     EVIDENCE_KEY=<python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())">
+     IP_HASH_SALT=<any long random string>
+     DATA_DIR=/data
+     MFA_REQUIRED_ROLES=super_admin,security_admin,investigator
+     ```
+   - Do **not** give it a public domain. The frontend reaches it over Railway's private network.
+3. Add the **frontend** service: **+ New → GitHub repo** (same repo).
+   - Settings → **Root Directory** = `frontend`
+   - Variables: `BACKEND_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:${{backend.PORT}}`. If `PORT` is not set on the backend, use `:8000` and set `PORT=8000` there.
+   - Settings → Networking → **Generate Domain**. This is your app URL.
+4. Open the frontend URL and create the first account (it becomes super_admin). Then set up MFA under **Account**.
+
+Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With the CLI instead of the dashboard: `npm i -g @railway/cli`, `railway login`, `railway link`, `railway up`, running `railway up` from each service folder.
+
 ---
 
 ## 🚧 Status / not done yet
 
-**Checkpoint push.** This commit contains the finished backend. Work continues on the items below.
-
-- [ ] **Frontend (Next.js)**: API proxy, types and API client exist. Pages (login/MFA, searches, candidate "Why this score", graph, ask, cases/incidents/evidence, timeline, admin security dashboard) are still being built. The old plain-HTML UI was removed because it targeted the previous API.
-- [ ] Railway deployment files (Dockerfiles, `railway.json`) and deploy steps.
-- [ ] Items that need infrastructure beyond one container, intentionally not in V1:
+- [x] Backend: every feature listed above, with 70 automated tests.
+- [x] Frontend: every page listed above. `next build` passes. End-to-end checked locally: setup → httpOnly refresh cookie → refresh → search through the proxy → PDF → logout.
+- [x] Railway files: Dockerfiles, `railway.json`, `.dockerignore`.
+- [ ] **Not verified by Claude:**
+  - `docker build`: Docker is not installed on this machine.
+  - A real Railway deploy: needs your login.
+  - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
+- [ ] No frontend unit/E2E test suite yet (e.g. Playwright). The backend has 70 tests.
+- [ ] Needs infrastructure beyond one container, so intentionally not in V1:
   - Cloud WAF/CDN/DDoS (use Cloudflare or Railway's edge).
-  - KMS/secrets manager (use Railway variables).
-  - SIEM export (the audit JSONL mirror is the hook for it).
-  - Redis/Celery queue (`workers/jobs.py` explains the swap).
-  - Neo4j and a vector database (graph and vectors are computed and stored in SQLite).
+  - KMS/secrets manager (Railway variables for now).
+  - SIEM export (ship `audit.jsonl` there).
+  - WORM/object-lock storage for the audit mirror.
+  - Redis/Celery queue (`workers/jobs.py` explains the swap). The in-memory rate limiter and job queue assume **one backend replica**.
+  - Neo4j and a vector database (graph and vectors are computed and stored in SQLite today).
   - MongoDB/PostgreSQL (only `repositories/` would change).
+  - OAuth/OIDC single sign-on (email + password + TOTP MFA today).
+  - QR code for MFA setup (the setup key and an otpauth link are shown instead).
+- [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).

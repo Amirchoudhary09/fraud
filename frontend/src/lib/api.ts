@@ -1,49 +1,64 @@
-// Typed API client. All calls go to /api/* on this origin (proxied to the backend).
+// Typed API client. Data calls go to /api/* (proxied to the backend); session calls go to /bff/*,
+// which keeps the refresh token in an httpOnly cookie. The access token lives in memory only.
 import type {
-  Answer, Attachment, Case, Comment, EvidenceGraph, Health, Identity, Investigation, Purpose, Role, User, Verdict,
+  AdminDashboard, Answer, AuditEvent, BreakGlass, Case, Evidence, EvidenceGraph, Health, Identity, Incident,
+  IncidentType, LoginResult, Member, MyDashboard, Purpose, Role, Search, SecurityEvent, Session, TimelineItem,
+  User, Verdict,
 } from "./types";
 
-const TOKEN_KEY = "ie_token";
-
-export function getToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
-}
-export function setToken(token: string | null) {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch { /* storage unavailable: token lives only for this page */ }
-}
+let accessToken: string | null = null;
+let refreshing: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function parseError(res: Response): Promise<ApiError> {
+  const body = await res.json().catch(() => ({}));
+  const d = body.detail;
+  return new ApiError(res.status, Array.isArray(d) ? d.map((x: { msg: string }) => x.msg).join("; ") : d || res.statusText);
+}
+
+async function bff<T>(action: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/bff/${action}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin",
+  });
+  if (!res.ok) throw await parseError(res);
+  const data = await res.json();
+  if (data.access_token) accessToken = data.access_token;
+  return data as T;
+}
+
+/** Uses the httpOnly refresh cookie to get a new access token. Concurrent callers share one refresh. */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= bff<Session>("refresh").then(() => true, () => { accessToken = null; return false; })
+    .finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+async function send(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const res = await fetch(path, { ...init, headers });
-  if (res.status === 401 && token) {
-    setToken(null);
-    window.dispatchEvent(new Event("ie:logout"));
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const d = body.detail;
-    throw new ApiError(res.status, Array.isArray(d) ? d.map((x: { msg: string }) => x.msg).join("; ") : d || res.statusText);
-  }
+  if (res.status === 401 && retry && (await refreshSession())) return send(path, init, false);
+  if (res.status === 401) window.dispatchEvent(new Event("ie:logout"));
+  return res;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await send(path, init);
+  if (!res.ok) throw await parseError(res);
   return res.json() as Promise<T>;
 }
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
 
-/** Fetches an authenticated file and returns it as a Blob (for reports and evidence files). */
+/** Fetches an authenticated file (report, evidence) as a Blob. */
 export async function fetchBlob(path: string): Promise<Blob> {
-  const token = getToken();
-  const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  if (!res.ok) throw new ApiError(res.status, (await res.json().catch(() => ({}))).detail || res.statusText);
+  const res = await send(path);
+  if (!res.ok) throw await parseError(res);
   return res.blob();
 }
 
@@ -54,29 +69,41 @@ export async function download(path: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-type Session = { token: string; user: User };
-
 export const api = {
   health: () => request<Health>("/api/health"),
 
-  authStatus: () => request<{ needs_setup: boolean }>("/api/auth/status"),
-  setup: (email: string, password: string) => request<Session>("/api/auth/setup", json("POST", { email, password })),
-  login: (email: string, password: string) => request<Session>("/api/auth/login", json("POST", { email, password })),
+  // session
+  authStatus: () => request<{ needs_setup: boolean; mfa_required_roles: string[] }>("/api/auth/status"),
+  setup: (email: string, password: string) => bff<Session>("setup", { email, password }),
+  login: (email: string, password: string) => bff<LoginResult>("login", { email, password }),
+  loginMfa: (mfa_token: string, code: string) => bff<Session>("mfa", { mfa_token, code }),
+  logout: async () => { await bff("logout").catch(() => undefined); accessToken = null; },
   me: () => request<User>("/api/auth/me"),
+  mfaSetup: () => request<{ secret: string; otpauth_uri: string }>("/api/auth/mfa/setup", json("POST")),
+  mfaConfirm: (code: string) => request<{ mfa_enabled: boolean }>("/api/auth/mfa/confirm", json("POST", { code })),
+  mfaDisable: (code: string) => request<{ mfa_enabled: boolean }>("/api/auth/mfa/disable", json("POST", { code })),
+
+  // users
   users: () => request<User[]>("/api/users"),
   createUser: (email: string, password: string, role: Role) => request<User>("/api/users", json("POST", { email, password, role })),
-  updateUser: (id: number, patch: { role?: Role; active?: boolean }) => request<User>(`/api/users/${id}`, json("PATCH", patch)),
+  updateUser: (id: number, patch: { role?: Role; status?: "active" | "disabled" }) => request<User>(`/api/users/${id}`, json("PATCH", patch)),
+  resetMfa: (id: number) => request(`/api/users/${id}/reset-mfa`, json("POST")),
+  myDashboard: () => request<MyDashboard>("/api/me/dashboard"),
 
-  investigations: (caseId?: string) => request<Investigation[]>(`/api/investigations${caseId ? `?case_id=${caseId}` : ""}`),
-  investigation: (id: string) => request<Investigation>(`/api/investigations/${id}`),
-  createInvestigation: (identity: Identity, purpose: Purpose) =>
-    request<{ id: string }>("/api/investigations", json("POST", { identity, purpose, acknowledged: true })),
-  deleteInvestigation: (id: string) => request(`/api/investigations/${id}`, json("DELETE")),
+  // searches
+  searches: (opts: { caseId?: string; all?: boolean } = {}) =>
+    request<Search[]>(`/api/searches${opts.caseId ? `?case_id=${opts.caseId}` : opts.all ? "?scope=all" : ""}`),
+  search: (id: string) => request<Search>(`/api/searches/${id}`),
+  createSearch: (identity: Identity, purpose: Purpose, caseId?: string) =>
+    request<{ id: string }>("/api/searches", json("POST", { identity, purpose, acknowledged: true, case_id: caseId })),
+  deleteSearch: (id: string) => request(`/api/searches/${id}`, json("DELETE")),
+  viewCandidate: (id: string, cid: string) => request(`/api/searches/${id}/candidates/${cid}`),
   feedback: (id: string, cid: string, verdict: Verdict) =>
-    request(`/api/investigations/${id}/candidates/${cid}/feedback`, json("POST", { verdict })),
-  graph: (id: string) => request<EvidenceGraph>(`/api/investigations/${id}/graph`),
-  ask: (id: string, question: string) => request<Answer>(`/api/investigations/${id}/ask`, json("POST", { question })),
+    request(`/api/searches/${id}/candidates/${cid}/feedback`, json("POST", { verdict })),
+  graph: (id: string) => request<EvidenceGraph>(`/api/searches/${id}/graph`),
+  ask: (id: string, question: string) => request<Answer>(`/api/searches/${id}/ask`, json("POST", { question })),
 
+  // cases
   cases: () => request<Case[]>("/api/cases"),
   case: (id: string) => request<Case>(`/api/cases/${id}`),
   createCase: (title: string, description: string, purpose: Purpose) =>
@@ -84,17 +111,47 @@ export const api = {
   updateCase: (id: string, patch: Partial<Pick<Case, "title" | "description" | "status">>) =>
     request<Case>(`/api/cases/${id}`, json("PATCH", patch)),
   deleteCase: (id: string) => request(`/api/cases/${id}`, json("DELETE")),
-  addComment: (id: string, c: { text: string; author_username?: string; source_url?: string; platform?: string; posted_at?: string }) =>
-    request<Comment>(`/api/cases/${id}/comments`, json("POST", c)),
-  investigateComment: (id: string, commentId: string, hints: Partial<Identity>) =>
-    request<{ id: string }>(`/api/cases/${id}/comments/${commentId}/investigate`, json("POST", hints)),
-  upload: (id: string, file: File) => {
+  timeline: (id: string) => request<TimelineItem[]>(`/api/cases/${id}/timeline`),
+  accessHistory: (id: string) => request<TimelineItem[]>(`/api/cases/${id}/access-history`),
+  grant: (id: string, email: string, access: "viewer" | "editor", expires_hours?: number) =>
+    request<Member[]>(`/api/cases/${id}/members`, json("POST", { email, access, expires_hours })),
+  revoke: (id: string, memberId: number) => request<Member[]>(`/api/cases/${id}/members/${memberId}`, json("DELETE")),
+  breakGlass: (id: string, reason: string) => request<BreakGlass>(`/api/cases/${id}/break-glass`, json("POST", { reason })),
+
+  createIncident: (caseId: string, body: {
+    incident_type?: IncidentType; description?: string; target_name?: string; author_handle?: string;
+    source_url?: string; content_id?: string; comment_text?: string; posted_at?: string;
+  }) => request<Incident>(`/api/cases/${caseId}/incidents`, json("POST", body)),
+  updateIncident: (caseId: string, id: string, patch: Partial<Pick<Incident, "incident_type" | "status" | "severity">>) =>
+    request<Incident>(`/api/cases/${caseId}/incidents/${id}`, json("PATCH", patch)),
+  investigateIncident: (caseId: string, id: string, hints: Partial<Identity>) =>
+    request<{ id: string }>(`/api/cases/${caseId}/incidents/${id}/investigate`, json("POST", hints)),
+
+  addTextEvidence: (caseId: string, text: string, incident_id?: string, source_url?: string) =>
+    request<Evidence>(`/api/cases/${caseId}/evidence/text`, json("POST", { text, incident_id, source_url })),
+  addUrlEvidence: (caseId: string, url: string, incident_id?: string) =>
+    request<Evidence>(`/api/cases/${caseId}/evidence/url`, json("POST", { url, incident_id })),
+  addFileEvidence: (caseId: string, file: File, incident_id?: string) => {
     const fd = new FormData();
     fd.append("file", file);
-    return request<Attachment>(`/api/cases/${id}/attachments`, { method: "POST", body: fd });
+    if (incident_id) fd.append("incident_id", incident_id);
+    return request<Evidence>(`/api/cases/${caseId}/evidence/file`, { method: "POST", body: fd });
   },
+  viewEvidence: (caseId: string, id: string) => request<Evidence>(`/api/cases/${caseId}/evidence/${id}`),
+  verifyEvidence: (caseId: string, id: string) =>
+    request<{ ok: boolean; original_hash: string; current_hash: string }>(`/api/cases/${caseId}/evidence/${id}/verify`, json("POST")),
 
-  audit: () => request<Record<string, string | number | null>[]>("/api/admin/audit"),
+  // admin / security
+  adminDashboard: () => request<AdminDashboard>("/api/admin/dashboard"),
+  audit: (params: { event_type?: string; case_id?: string } = {}) =>
+    request<AuditEvent[]>(`/api/admin/audit?${new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][])}`),
+  verifyAudit: () => request<{ ok: boolean; events_checked: number; broken_at?: string; head_hash?: string }>("/api/admin/audit/verify", json("POST")),
+  securityEvents: (status?: string) => request<SecurityEvent[]>(`/api/admin/security-events${status ? `?status=${status}` : ""}`),
+  setSecurityEvent: (id: string, status: "acknowledged" | "resolved") =>
+    request(`/api/admin/security-events/${id}`, json("PATCH", { status })),
+  breakGlassRequests: (status?: string) => request<BreakGlass[]>(`/api/admin/break-glass${status ? `?status=${status}` : ""}`),
+  decideBreakGlass: (id: string, approve: boolean, hours?: number) =>
+    request<BreakGlass>(`/api/admin/break-glass/${id}`, json("POST", { approve, hours })),
   evaluation: (threshold: number) => request<Record<string, unknown>>(`/api/admin/evaluation?threshold=${threshold}`),
   calibrate: (method: "platt" | "isotonic") => request<Record<string, unknown>>("/api/admin/calibrate", json("POST", { method })),
   purge: () => request<Record<string, number>>("/api/admin/retention/purge", json("POST")),
