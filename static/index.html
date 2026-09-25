@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity Evidence</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Public Identity Evidence</h1>
+  <span id="mode" class="pill"></span>
+</header>
+
+<main>
+  <aside>
+    <form id="form">
+      <h2>New investigation</h2>
+      <label>Name *<input name="name" required minlength="2" maxlength="100" placeholder="Amir Choudhary"></label>
+      <label>Company<input name="company" maxlength="100" placeholder="WASP3D"></label>
+      <label>College<input name="college" maxlength="100" placeholder="GLBITM"></label>
+      <label>Role<input name="role" maxlength="100" placeholder="Software Developer"></label>
+      <label>City<input name="location" maxlength="100" placeholder="Delhi"></label>
+      <label>Public username<input name="username" maxlength="60" placeholder="optional"></label>
+      <label>Purpose *
+        <select name="purpose" required>
+          <option value="self_check">Checking my own public footprint</option>
+          <option value="professional_verification">Professional verification (with consent)</option>
+          <option value="harassment_report">Documenting harassment for a platform/police report</option>
+          <option value="research">Research / testing</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" name="acknowledged" required>
+        I will only use public information for a lawful purpose. Results are possible matches,
+        not proof of identity, and I will not use them to contact, expose or harass anyone.</label>
+      <button type="submit">Start investigation</button>
+      <p id="formError" class="error" hidden></p>
+    </form>
+
+    <h2>Cases</h2>
+    <ul id="cases"></ul>
+  </aside>
+
+  <section id="detail">
+    <p class="muted">Start an investigation or open a case.</p>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
