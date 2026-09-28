@@ -5,7 +5,7 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const BACKEND = (process.env.BACKEND_URL ?? "https://fraud-backend-v21n.onrender.com").replace(/\/$/, "");
 const STATE_COOKIE = "ie_oidc_state";
 const RT_COOKIE = "ie_rt";
 
