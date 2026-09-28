@@ -1,7 +1,6 @@
 import hashlib
-import sqlite3
 
-from app.core import config
+from app.core import database
 from app.services.comments import analyze, public_handle
 from app.services.evidence import canonical_text
 
@@ -55,7 +54,7 @@ def test_case_incident_evidence_lifecycle(client, investigator_h, analyst_h, adm
     assert full["analyses"][0]["evidence_id"] == ev["id"] and full["target_entity"] == "angry_handle"
 
     # evidence content is encrypted at rest, never stored in plaintext
-    with sqlite3.connect(config.DB_PATH) as db:
+    with database.connect() as db:
         stored = db.execute("SELECT content_enc FROM evidence WHERE id = ?", (ev["id"],)).fetchone()[0]
     assert "watch your back" not in stored
 
@@ -68,7 +67,7 @@ def test_case_incident_evidence_lifecycle(client, investigator_h, analyst_h, adm
                      files={"file": ("screenshot.png", PNG, "image/png")})
     assert up.status_code == 201 and up.json()["content_hash"] == hashlib.sha256(PNG).hexdigest()
     assert "storage_path" not in up.json()
-    with sqlite3.connect(config.DB_PATH) as db:
+    with database.connect() as db:
         path = db.execute("SELECT storage_path FROM evidence WHERE id = ?", (up.json()["id"],)).fetchone()[0]
     assert open(path, "rb").read() != PNG
     dl = client.get(f"/api/cases/{cid}/evidence/{up.json()['id']}/download", headers=investigator_h)
@@ -78,7 +77,7 @@ def test_case_incident_evidence_lifecycle(client, investigator_h, analyst_h, adm
     assert bad.status_code == 400
 
     # tampering with stored evidence is detected
-    with sqlite3.connect(config.DB_PATH) as db:
+    with database.connect() as db:
         db.execute("UPDATE evidence SET content_hash = ? WHERE id = ?", ("0" * 64, ev["id"]))
     v = client.post(f"/api/cases/{cid}/evidence/{ev['id']}/verify", headers=investigator_h).json()
     assert v["ok"] is False and v["current_hash"] != v["original_hash"]

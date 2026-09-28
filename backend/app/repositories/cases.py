@@ -100,9 +100,9 @@ def members(case_id: str) -> list[dict]:
 def grant(case_id: str, user_id: int, access: str, granted_by: int, via: str = "grant",
           expires_at: str | None = None) -> int:
     with connect() as c:
-        cur = c.execute("INSERT INTO case_members (case_id, user_id, access, via, granted_by, granted_at, expires_at)"
-                        " VALUES (?,?,?,?,?,?,?)", (case_id, user_id, access, via, granted_by, now(), expires_at))
-    return cur.lastrowid
+        return c.execute("INSERT INTO case_members (case_id, user_id, access, via, granted_by, granted_at, expires_at)"
+                         " VALUES (?,?,?,?,?,?,?) RETURNING id",
+                         (case_id, user_id, access, via, granted_by, now(), expires_at)).fetchone()[0]
 
 
 def revoke(case_id: str, member_id: int) -> bool:

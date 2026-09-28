@@ -9,5 +9,6 @@ cryptography==50.0.1
 fpdf2==2.8.8
 langgraph==1.2.12
 redis==8.1.0
+psycopg[binary]==3.3.6
 boto3==1.43.103
 neo4j==6.3.1

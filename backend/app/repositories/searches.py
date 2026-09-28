@@ -1,6 +1,5 @@
 """Search history (spec section 6): one row per search, separate from the audit log."""
 import json
-import sqlite3
 
 from ..core.database import connect, dumps, loads, new_id, now
 
@@ -35,7 +34,7 @@ def update(search_id: str, **fields):
                   (*fields.values(), search_id))
 
 
-def _row(r: sqlite3.Row) -> dict:
+def _row(r) -> dict:
     d = dict(r)
     d["input"] = json.loads(d.pop("query_json"))
     if "result_json" in d:

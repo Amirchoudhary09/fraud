@@ -13,9 +13,9 @@ def count(active_only: bool = False) -> int:
 
 def create(email: str, password_hash: str, role: str) -> dict:
     with connect() as c:
-        cur = c.execute("INSERT INTO users (email, password_hash, role, created_at) VALUES (?,?,?,?)",
-                        (email.lower(), password_hash, role, now()))
-    return get(cur.lastrowid)
+        uid = c.execute("INSERT INTO users (email, password_hash, role, created_at) VALUES (?,?,?,?) RETURNING id",
+                        (email.lower(), password_hash, role, now())).fetchone()[0]
+    return get(uid)
 
 
 def get(user_id: int) -> dict | None:
@@ -60,10 +60,9 @@ def clear_mfa(user_id: int):
 
 def store_refresh(user_id: int, token_hash: str, days: int, family_id: str | None = None) -> int:
     with connect() as c:
-        cur = c.execute("INSERT INTO refresh_tokens (user_id, token_hash, family_id, created_at, expires_at)"
-                        " VALUES (?,?,?,?,?)",
-                        (user_id, token_hash, family_id or uuid.uuid4().hex, now(), in_future(days=days)))
-    return cur.lastrowid
+        return c.execute("INSERT INTO refresh_tokens (user_id, token_hash, family_id, created_at, expires_at)"
+                         " VALUES (?,?,?,?,?) RETURNING id",
+                         (user_id, token_hash, family_id or uuid.uuid4().hex, now(), in_future(days=days))).fetchone()[0]
 
 
 def get_refresh(token_hash: str) -> dict | None:

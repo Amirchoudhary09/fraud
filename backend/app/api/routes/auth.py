@@ -1,10 +1,9 @@
 import secrets
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ...core import config, crypto, permissions, ratelimit
-from ...core.database import now
+from ...core.database import integrity_errors, now
 from ...core.security import (create_access_token, create_mfa_token, decode_token, hash_password, hash_refresh_token,
                               new_refresh_token, new_totp_secret, totp_uri, verify_password, verify_totp)
 from ...repositories import kv, users
@@ -201,7 +200,7 @@ def create_user(body: NewUser, me: dict = Depends(need("users.manage"))):
         deny(me, "Only a super_admin can create another super_admin")
     try:
         user = users.create(body.email, hash_password(body.password), body.role)
-    except sqlite3.IntegrityError:
+    except integrity_errors():
         raise HTTPException(409, "A user with this email already exists")
     audit.record("USER_CREATED", target_type="USER", target_id=str(user["id"]), detail={"role": user["role"]})
     return user

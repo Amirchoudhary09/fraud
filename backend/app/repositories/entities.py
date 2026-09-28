@@ -1,9 +1,7 @@
 """Entities (people/handles being searched or reported) and explicit relationships:
 USER ─SEARCHED→ ENTITY, USER ─CREATED_INCIDENT→ INCIDENT, INCIDENT ─TARGETS→ ENTITY,
 INCIDENT ─CONTAINS→ EVIDENCE."""
-import sqlite3
-
-from ..core.database import connect, new_id, now
+from ..core.database import connect, integrity_errors, new_id, now
 
 
 def normalized_key(entity_type: str, name: str) -> str:
@@ -20,7 +18,7 @@ def get_or_create(entity_type: str, display_name: str) -> str:
         try:
             c.execute("INSERT INTO entities (id, entity_type, display_name, normalized_key, created_at)"
                       " VALUES (?,?,?,?,?)", (eid, entity_type, display_name, key, now()))
-        except sqlite3.IntegrityError:  # created concurrently
+        except integrity_errors():  # created concurrently
             return c.execute("SELECT id FROM entities WHERE normalized_key = ?", (key,)).fetchone()[0]
     return eid
 

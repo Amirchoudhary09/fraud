@@ -15,6 +15,10 @@ GEMINI_EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001").str
 # On Railway, mount a volume and set DATA_DIR to its path so data survives redeploys.
 DATA_DIR = Path(os.getenv("DATA_DIR", str(ROOT / "data")))
 DB_PATH = Path(os.getenv("DB_PATH", str(DATA_DIR / "app.db")))
+# PostgreSQL (optional). When set, it replaces the SQLite file. Use a separate database (or at least a
+# separate role) for the audit log via AUDIT_DATABASE_URL; it defaults to DATABASE_URL.
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+AUDIT_DATABASE_URL = os.getenv("AUDIT_DATABASE_URL", "").strip() or DATABASE_URL
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(DATA_DIR / "uploads")))
 CALIBRATION_PATH = Path(os.getenv("CALIBRATION_PATH", str(DATA_DIR / "calibration.json")))
 

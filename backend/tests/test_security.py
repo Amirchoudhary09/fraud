@@ -1,36 +1,48 @@
-import shutil
-import sqlite3
-
 import pytest
 
 from app.agents.tools import AgentPermissionError, Toolbox
-from app.core import audit_store, config
+from app.core import audit_store, config, database
 from app.providers.gemini import fence
 from app.providers.mock import MockProvider
 from app.services import safe_fetch
 
 
 def test_audit_log_is_append_only(client, admin_h):
-    with sqlite3.connect(config.AUDIT_DB_PATH) as db:
-        with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-            db.execute("UPDATE audit_events SET result = 'x'")
-        with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-            db.execute("DELETE FROM audit_events")
+    for stmt in ("UPDATE audit_events SET result = 'x'", "DELETE FROM audit_events"):
+        with pytest.raises(Exception, match="append-only"):
+            with audit_store._db() as c:
+                c.execute(stmt)
+    if database.is_postgres(audit_store.target()):
+        with pytest.raises(Exception, match="append-only"):
+            with audit_store._db() as c:
+                c.execute("TRUNCATE audit_events")
 
 
-def test_audit_chain_detects_tampering(client, admin_h, auditor_h, tmp_path):
+def _set_triggers(enabled: bool):
+    """Simulates an attacker with raw database access switching off the append-only protection."""
+    with audit_store._db() as c:
+        if database.is_postgres(audit_store.target()):
+            c.execute(f"ALTER TABLE audit_events {'ENABLE' if enabled else 'DISABLE'} TRIGGER USER")
+        elif not enabled:
+            c.execute("DROP TRIGGER audit_no_update")
+    if enabled:
+        audit_store.init()
+
+
+def test_audit_chain_detects_tampering(client, admin_h, auditor_h):
     assert client.post("/api/admin/audit/verify", headers=auditor_h).json()["ok"] is True
-    # Simulate an attacker with raw file access who drops the trigger and edits an old event.
-    backup = tmp_path / "audit.bak"
-    shutil.copy(config.AUDIT_DB_PATH, backup)
+    with audit_store._db() as c:
+        original = c.execute("SELECT event_type, result FROM audit_events WHERE seq = 2").fetchone()
+    _set_triggers(False)
     try:
-        with sqlite3.connect(config.AUDIT_DB_PATH) as db:
-            db.execute("DROP TRIGGER audit_no_update")
-            db.execute("UPDATE audit_events SET result = 'SUCCESS', event_type = 'AUTH_LOGIN_SUCCESS' WHERE seq = 2")
+        with audit_store._db() as c:
+            c.execute("UPDATE audit_events SET result = 'SUCCESS', event_type = 'AUTH_LOGIN_SUCCESS' WHERE seq = 2")
         r = audit_store.verify()
         assert r["ok"] is False and r["seq"] == 2
+        with audit_store._db() as c:
+            c.execute("UPDATE audit_events SET event_type = ?, result = ? WHERE seq = 2", (original[0], original[1]))
     finally:
-        shutil.copy(backup, config.AUDIT_DB_PATH)
+        _set_triggers(True)
     assert audit_store.verify()["ok"] is True
 
 

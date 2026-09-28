@@ -172,6 +172,41 @@ Claude could not log in to your Railway account, so these steps are manual (~10 
 
 Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With the CLI instead of the dashboard: `npm i -g @railway/cli`, `railway login`, `railway link`, `railway up`, running `railway up` from each service folder.
 
+### Running more than one backend replica (optional)
+
+1. Add **PostgreSQL** and **Redis** to the project (Railway → + New → Database).
+2. Backend variables:
+   - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
+   - `REDIS_URL=${{Redis.REDIS_URL}}`
+   - Optional: `AUDIT_DATABASE_URL` pointing to a second Postgres database used only for the audit log.
+3. Add a **worker** service from the same repo:
+   - Root Directory `backend`
+   - Start Command `./start.sh worker`
+   - Same variables as the backend
+4. Now you can raise the backend's replica count.
+5. Uploaded evidence files still live on the `/data` volume, which one service owns. For several replicas, move evidence files to S3 by replacing `services/storage.py`.
+
+### Optional integrations
+
+These are all off unless configured. The variables are listed in `backend/.env.example`.
+
+- **SSO:** `OIDC_*`, with redirect URI `https://<frontend>/bff/oidc/callback`
+- **SIEM:** `SIEM_*`
+- **WORM storage:** `WORM_S3_*`. The bucket must be created with Object Lock.
+- **Neo4j:** `NEO4J_*`
+
+### Edge protection (WAF / CDN / DDoS) and KMS
+
+These are infrastructure settings, not code.
+
+- **Cloudflare in front of the frontend domain:**
+  1. Add the domain to Cloudflare and point a CNAME to the Railway domain (proxied).
+  2. Set SSL/TLS to **Full (strict)**.
+  3. Turn on the **Managed WAF ruleset** and **Bot Fight Mode**.
+  4. Add a rate-limiting rule on `/bff/*` and `/api/auth/*`.
+  5. Leave the backend without a public domain. It is reachable only through the frontend over Railway's private network.
+- **Secrets:** Keep `JWT_SECRET`, `EVIDENCE_KEY` and the OIDC/SIEM secrets in Railway variables, or in a cloud secrets manager (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) injected as environment variables. Rotate them by redeploying with new values. Rotating `EVIDENCE_KEY` requires re-encrypting stored evidence.
+
 ---
 
 ## 🚧 Status / not done yet
@@ -192,14 +227,20 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
 - [x] **Neo4j**:
   - `GET /api/searches/{id}/graph.cypher` downloads the evidence graph as a Cypher script. Every value is escaped and labels come from an allowlist, so web data cannot inject Cypher.
   - `POST /api/searches/{id}/graph/neo4j` pushes the graph into a live Neo4j (`NEO4J_URI`) with parameterised, idempotent MERGE. Both actions are audited, and CI checks the push against a real Neo4j.
+- [x] **PostgreSQL** (`DATABASE_URL`, optional `AUDIT_DATABASE_URL`):
+  - App data and the audit log can both live in Postgres. SQLite stays the default.
+  - On Postgres the audit table is protected by PL/pgSQL triggers that block UPDATE, DELETE and TRUNCATE.
+  - Chain appends are serialised with an advisory lock, so several replicas cannot fork the hash chain.
+  - The full backend suite runs on PostgreSQL 16 locally and in CI.
+  - Together with Redis, this is the setup for running more than one API replica.
 - [ ] **Not verified by Claude:**
   - A real Railway deploy: needs your login.
   - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
 - [x] **Playwright end-to-end tests** (`frontend/e2e`, 6 flows in real Chromium, including SSO and login-CSRF): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
 - [x] **GitHub Actions CI** (`.github/workflows/ci.yml`): backend tests, frontend lint/type-check/build, and the E2E suite on every push and pull request.
 - [ ] Needs infrastructure beyond one container, so intentionally not in V1:
-  - Cloud WAF/CDN/DDoS (use Cloudflare or Railway's edge).
-  - KMS/secrets manager (Railway variables for now).
+  - Cloud WAF/CDN/DDoS: an infrastructure setting. See "Edge protection" above for the Cloudflare steps.
+  - KMS/secrets manager: an infrastructure setting. See "Edge protection" above.
   - A dedicated vector database (vectors are stored in SQLite today, and brute-force search is fine per investigation).
-  - MongoDB/PostgreSQL (only `repositories/` would change).
+  - MongoDB (PostgreSQL is supported, see above).
 - [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).

@@ -10,6 +10,15 @@ os.environ["JWT_SECRET"] = "test-secret-not-for-production-0123456789"
 os.environ["ALERT_SEARCHES_PER_5MIN"] = "1000"
 os.environ["ALERT_DISTINCT_TARGETS_PER_HOUR"] = "1000"
 
+# TEST_DATABASE_URL=postgresql://... runs the whole suite on PostgreSQL (app + audit tables in a
+# throwaway database that is wiped first). Without it the suite uses fresh SQLite files.
+if os.getenv("TEST_DATABASE_URL"):
+    import psycopg
+    with psycopg.connect(os.environ["TEST_DATABASE_URL"], autocommit=True) as _c:
+        _c.execute("DROP SCHEMA public CASCADE")
+        _c.execute("CREATE SCHEMA public")
+    os.environ["DATABASE_URL"] = os.environ["AUDIT_DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
