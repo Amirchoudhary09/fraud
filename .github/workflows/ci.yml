@@ -26,25 +26,33 @@ jobs:
       - name: Redis backends against a real Redis
         run: python -m pytest -q tests/test_redis.py
         env: { TEST_REDIS_URL: "redis://localhost:6379/0" }
-      - name: WORM export against MinIO with Object Lock
+
+  integrations:
+    # Optional backends against real services: S3 Object Lock (moto S3 server) and Neo4j.
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    services:
+      neo4j:
+        image: neo4j:5
+        env: { NEO4J_AUTH: "neo4j/ci-password-123" }
+        ports: ["17687:7687", "17474:7474"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: backend/requirements*.txt }
+      - run: pip install -r requirements-dev.txt "moto[server]"
+      - name: WORM export against an S3 server with Object Lock (moto)
         run: |
-          # pinned release: MinIO no longer publishes new community images to Docker Hub
-          img=quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
-          out=$( { docker pull -q "$img" && docker run -d --name ci-minio -p 19000:9000 -e MINIO_ROOT_USER=ciuser \
-            -e MINIO_ROOT_PASSWORD=ci-password-123 "$img" server /data; } 2>&1 ) \
-            || { echo "::error title=minio start::$(echo "$out" | tr '\n' ' ')"; exit 1; }
-          for i in $(seq 1 30); do curl -fs http://localhost:19000/minio/health/live && break; sleep 2; done
+          moto_server -H 127.0.0.1 -p 19000 > /tmp/moto.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:19000/moto-api/ >/dev/null && break; sleep 1; done
           python -m pytest -q tests/test_exporters.py -k real_object_lock -rs
         env:
-          TEST_S3_ENDPOINT: "http://localhost:19000"
+          TEST_S3_ENDPOINT: "http://127.0.0.1:19000"
           AWS_ACCESS_KEY_ID: ciuser
           AWS_SECRET_ACCESS_KEY: ci-password-123
-      - name: Evidence graph push into a real Neo4j
+      - name: Evidence graph push into Neo4j
         run: |
-          out=$(docker run -d --name ci-neo4j -p 17687:7687 -p 17474:7474 -e NEO4J_AUTH=neo4j/ci-password-123 neo4j:5 2>&1) \
-            || { echo "::error title=neo4j start::$(echo "$out" | tr '\n' ' ')"; exit 1; }
           for i in $(seq 1 60); do curl -fs http://localhost:17474 >/dev/null && break; sleep 2; done
-          sleep 5
           python -m pytest -q tests/test_graph_export.py -k real_neo4j -rs
         env:
           TEST_NEO4J_URI: "bolt://localhost:17687"
