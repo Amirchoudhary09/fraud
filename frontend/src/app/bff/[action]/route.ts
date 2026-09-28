@@ -4,7 +4,7 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const BACKEND = (process.env.BACKEND_URL ?? "https://fraud-backend-v21n.onrender.com").replace(/\/$/, "");
 const COOKIE = "ie_rt";
 const UPSTREAM: Record<string, string> = {
   login: "/api/auth/login",
