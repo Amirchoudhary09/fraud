@@ -5,7 +5,6 @@ USER ─SEARCHED→ ENTITY relationship, and a SEARCH_STARTED audit event, then 
 """
 from fastapi import HTTPException
 
-from ..agents.supervisor import run_investigation
 from ..core import config, context, ratelimit
 from ..core.privacy import find_blocked_terms
 from ..repositories import entities, searches
@@ -35,5 +34,5 @@ def start_search(identity: IdentityInput, purpose: str, user: dict, case_id: str
     audit.record("SEARCH_STARTED", target_type="ENTITY", target_id=entity_id, search_id=sid, case_id=case_id,
                  detail={"search_type": search_type, "purpose": purpose, "provider": provider})
 
-    jobs.submit(run_investigation, sid, identity, user["id"], context.request_id.get(), context.ip_hash.get())
+    jobs.submit("run_search", sid, identity.model_dump(), user["id"], context.request_id.get(), context.ip_hash.get())
     return sid

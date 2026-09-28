@@ -179,8 +179,9 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
 - [x] Backend: every feature listed above, with 70 automated tests.
 - [x] Frontend: every page listed above. `next build` passes. End-to-end checked locally: setup → httpOnly refresh cookie → refresh → search through the proxy → PDF → logout.
 - [x] Railway files: Dockerfiles, `railway.json`, `.dockerignore`.
+- [x] **Docker images verified in CI**: both images are built, run together on a private network, and smoke-tested (health, proxy, non-root user, CSRF block).
+- [x] **Redis (optional, `REDIS_URL`)**: shared sliding-window rate limits and a reliable job queue. Jobs held by a crashed worker are re-queued once its heartbeat expires. Run `python -m app.workers.worker` as a separate service. Tested with fakeredis, and against a real Redis in CI.
 - [ ] **Not verified by Claude:**
-  - `docker build`: Docker is not installed on this machine.
   - A real Railway deploy: needs your login.
   - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
 - [x] **Playwright end-to-end tests** (`frontend/e2e`, 4 flows in real Chromium): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
@@ -190,7 +191,6 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
   - KMS/secrets manager (Railway variables for now).
   - SIEM export (ship `audit.jsonl` there).
   - WORM/object-lock storage for the audit mirror.
-  - Redis/Celery queue (`workers/jobs.py` explains the swap). The in-memory rate limiter and job queue assume **one backend replica**.
   - Neo4j and a vector database (graph and vectors are computed and stored in SQLite today).
   - MongoDB/PostgreSQL (only `repositories/` would change).
   - OAuth/OIDC single sign-on (email + password + TOTP MFA today).

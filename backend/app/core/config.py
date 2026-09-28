@@ -68,6 +68,10 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 # Calibrated confidence is only shown once this many reviewed labels were used to fit it.
 MIN_CALIBRATION_LABELS = int(os.getenv("MIN_CALIBRATION_LABELS", "30"))
 
+# Redis (optional): shared rate limits and a reliable job queue for multiple API replicas.
+# When set, run `python -m app.workers.worker` as a separate service to execute jobs.
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+
 # Job queue: number of worker threads; JOBS_INLINE=1 runs jobs synchronously (tests).
 WORKERS = int(os.getenv("WORKERS", "2"))
 JOBS_INLINE = os.getenv("JOBS_INLINE", "").lower() in ("1", "true", "yes")
