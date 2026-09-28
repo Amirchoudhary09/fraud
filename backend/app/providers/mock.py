@@ -5,7 +5,7 @@ so the whole pipeline and UI can be exercised without network access.
 """
 from ..services.embeddings import hash_embed
 from ..services.similarity import MATCH_AT, similarity
-from ..schemas.identity import Candidate, Claim, IdentityInput, Profile, SourceRef, TimelineEvent
+from ..schemas.identity import Candidate, Claim, IdentityInput, SourceRef
 from .base import Judgement, SearchResult, SearchSnippet
 
 
@@ -53,8 +53,7 @@ class MockProvider:
         snippet = SearchSnippet(text=f"Mock result for {query}", sources=[src])
         return SearchResult(query=query, summary=f"[MOCK] Results for {query}", snippets=[snippet], sources=[src])
 
-    def extract_candidates(self, identity: IdentityInput, results: list[SearchResult],
-                           with_profiles: bool = False) -> list[Candidate]:
+    def extract_candidates(self, identity: IdentityInput, results: list[SearchResult]) -> list[Candidate]:
         n = identity.name
         first = n.split()[0]
         company = identity.company or "Acme Corp"
@@ -90,55 +89,4 @@ class MockProvider:
             Claim(field="name", value=f"{first} Khan", evidence=f"{first} Khan, spokesperson", source=third),
             Claim(field="role", value="Spokesperson", evidence="spokesperson", source=third),
         ])
-        if with_profiles:
-            strong.profiles, same_name.profiles, weak.profiles = _demo_profiles(n, first, company, college, role, loc)
         return [strong, same_name, weak]
-
-    # --- footprint expansion (offline fixtures) -------------------------------------------------
-
-    def fetch_public_page(self, url: str) -> dict | None:
-        """Only the demo portfolio exists offline; it links to one more account (found by expansion)."""
-        if url.rstrip("/") == DEMO_SITE:
-            html = (f'<title>[MOCK] Portfolio</title><a href="{DEMO_LINKEDIN}">LinkedIn</a>'
-                    f'<a href="https://github.com/iedemo">GitHub</a><a href="https://www.youtube.com/@iedemo">YouTube</a>')
-            return {"final_url": url, "status": 200, "content_type": "text/html", "body": html.encode()}
-        return None
-
-    def archive_first_capture(self, url: str) -> str | None:
-        return "20210315" if url.rstrip("/") == DEMO_SITE else None
-
-
-DEMO_SITE = "https://portfolio.example.com/iedemo"
-DEMO_LINKEDIN = "https://www.linkedin.com/in/iedemo-target"
-
-
-def _demo_profiles(n, first, company, college, role, loc):
-    """[MOCK] public accounts: clearly fake 'iedemo' handles, example.com sites."""
-    li = SourceRef(url=DEMO_LINKEDIN, title="[MOCK] linkedin.com")
-    gh = SourceRef(url="https://github.com/iedemo", title="[MOCK] github.com")
-    site = SourceRef(url=DEMO_SITE, title="[MOCK] portfolio.example.com")
-    rd = SourceRef(url="https://www.reddit.com/user/iedemo", title="[MOCK] reddit.com")
-    target = [
-        Profile(platform="linkedin", username="iedemo-target", display_name=n, profile_url=li.url,
-                account_type="personal", public_bio=f"{role} at {company}", public_company=company,
-                public_role=role, public_education=college, public_location=loc, source=li,
-                public_links=[DEMO_SITE],
-                events=[TimelineEvent(date="2023-01", platform="linkedin", event=f"Public role listed: {role} at {company}",
-                                      source=li)]),
-        Profile(platform="github", username="iedemo", display_name=n, profile_url=gh.url, account_type="personal",
-                public_bio=f"Building things at {company}", public_company=company, public_location=loc,
-                public_links=[DEMO_SITE], publicly_documented_creation_date="2019-06", source=gh,
-                events=[TimelineEvent(date="2022-04", platform="github", event="Public repository created: demo-app",
-                                      source=gh)]),
-        Profile(platform="website", display_name=n, profile_url=DEMO_SITE, public_bio=f"Portfolio of {n}",
-                public_role=role, public_links=[DEMO_LINKEDIN, "https://github.com/iedemo"], source=site),
-        Profile(platform="reddit", username="iedemo", profile_url=rd.url, source=rd),  # username only
-    ]
-    ig = SourceRef(url="https://www.instagram.com/iedemo", title="[MOCK] instagram.com")
-    other_person = [Profile(platform="instagram", username="iedemo", display_name=n, profile_url=ig.url,
-                            public_company="Globex Industries", public_role="Sales Manager",
-                            public_location="Mumbai", source=ig)]
-    tt = SourceRef(url="https://www.tiktok.com/@iedemo", title="[MOCK] tiktok.com")
-    third = [Profile(platform="tiktok", username="iedemo", display_name=f"{first} Khan", profile_url=tt.url,
-                     public_location="Lahore", source=tt)]
-    return target, other_person, third

@@ -26,8 +26,7 @@ def _completed(user: dict, search_id: str) -> dict:
 def create(req: InvestigationRequest, user: dict = Depends(need("search.create"))):
     if req.case_id:
         case_access(user, req.case_id, "editor")
-    return {"id": intake.start_search(req.identity, req.purpose, user, case_id=req.case_id, mode=req.mode,
-                                      self_attestation=req.self_attestation, consent_reference=req.consent_reference)}
+    return {"id": intake.start_search(req.identity, req.purpose, user, case_id=req.case_id)}
 
 
 @router.get("")

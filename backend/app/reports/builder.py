@@ -64,9 +64,6 @@ def search_report(s: dict, feedback: dict) -> dict:
                                                              "rows": [[k, str(v)] for k, v in s["input"].items()]}}]},
         {"title": "3. Candidates, evidence, matching, contradictions, confidence", "blocks": search_blocks(s, feedback)},
     ]
-    fp = s["result"].get("footprint")
-    if fp:
-        sections = footprint_sections(fp) + sections
     return {"title": f"Public Evidence Report {s['id']}", "notice": NOTICE,
             "warning": MOCK_WARNING if s["result"].get("mock") else None, "sections": sections}
 
@@ -116,76 +113,3 @@ def case_report(case: dict, incidents: list[dict], evidence: list[dict], analyse
                  for t in timeline]}}]})
     return {"title": f"Case Report {case['id']}: {case['title']}", "notice": NOTICE,
             "warning": MOCK_WARNING if mock else None, "sections": sections}
-
-
-def _acct(a: dict) -> str:
-    return f"{a['platform']}: {a.get('username') or a.get('profile_url') or '?'}"
-
-
-def footprint_sections(fp: dict) -> list[dict]:
-    """Report sections for a public-footprint search (executive summary through human review)."""
-    accounts = fp.get("accounts", [])
-    target = set(fp.get("target_candidates", []))
-    mine = [a for a in accounts if a["candidate_id"] in target]
-    found = [a for a in mine if a["status"] == "FOUND"]
-    possible = [a for a in mine if a["status"] == "POSSIBLE MATCH"]
-    status_rows = fp.get("platform_status", [])
-    count = lambda st: sum(1 for r in status_rows if r["status"] == st)  # noqa: E731
-    exp = fp.get("expansion", {})
-
-    def account_table(rows):
-        return {"table": {"headers": ["Candidate", "Account", "Status", "Score", "Found via", "URL"],
-                          "rows": [[a["candidate_id"], _acct(a), a["status"], str(a["score"]), a.get("discovered_via", ""),
-                                    a.get("profile_url") or ""] for a in rows]}}
-
-    def why(rows):
-        items = []
-        for a in rows:
-            e = a["explanation"]
-            items.append({"text": f"{_acct(a)} ({a['score']}): why it matches: {'; '.join(e['why_match']) or 'nothing'}. "
-                                  f"Why it may not: {'; '.join(e['why_it_may_not_match']) or 'nothing noted'}.",
-                          "links": [{"url": u, "label": u} for u in e["supporting_sources"] + e["contradicting_sources"]]})
-        return {"list": items or ["None"]}
-
-    sources = sorted({a["source"]["url"] for a in accounts if a.get("source")} |
-                     {e["source"]["url"] for e in fp.get("timeline", []) if e.get("source")})
-    links = [f"{_acct(a)} is linked from {a['linked_from']}" for a in accounts if a.get("linked_from")]
-    return [
-        {"title": "Executive summary", "blocks": [{"p": (
-            f"{len(found)} high-confidence and {len(possible)} possible public profiles for the target candidate "
-            f"({', '.join(sorted(target)) or 'none identified'}); {len(accounts)} accounts examined across "
-            f"{len({a['candidate_id'] for a in accounts})} candidate(s). Platforms: {count('FOUND')} found, "
-            f"{count('POSSIBLE MATCH')} possible, {count('INSUFFICIENT EVIDENCE')} insufficient evidence, "
-            f"{count('NOT FOUND')} not found, {count('NOT SEARCHABLE')} not searchable. Link expansion: "
-            f"{exp.get('rounds', 0)} round(s), {exp.get('leads_followed', 0)} lead(s), "
-            f"{exp.get('pages_fetched', 0)} public page(s) read; stopped because {exp.get('stopped_because', '-')}.")}]},
-        {"title": "Discovered public profiles", "blocks": [account_table(accounts)]},
-        {"title": "High-confidence profiles", "blocks": [why(found)]},
-        {"title": "Possible profiles", "blocks": [why(possible)]},
-        {"title": "Platform-by-platform results", "blocks": [{"table": {
-            "headers": ["Platform", "Status", "Detail"], "rows": [[r["name"], r["status"], r["detail"]] for r in status_rows]}}]},
-        {"title": "Cross-platform connections", "blocks": [{"list": links or ["No published cross-links found."]}]},
-        {"title": "Public account history", "blocks": [{"list": [
-            f"{_acct(a)}: " + "; ".join(f"{e['date']} {e['event']}" for e in a.get("events", []))
-            for a in found if a.get("events")] or ["No dated public history found for high-confidence accounts."]}]},
-        {"title": "Chronological timeline", "blocks": [{"table": {
-            "headers": ["Date", "Platform", "Event", "Source", "Confidence"],
-            "rows": [[e["date"], e["platform"], e["event"], (e.get("source") or {}).get("url", ""), e["confidence"]]
-                     for e in fp.get("timeline", [])]}}]},
-        {"title": "Evidence graph", "blocks": [{"p": "Candidate -HAS_PROFILE/OWNS_WEBSITE-> profile and profile "
-                                                     "-LINKS_TO-> profile edges, each with its source; see the graph view "
-                                                     "or the Cypher export for the full graph."}]},
-        {"title": "Contradictions", "blocks": [{"list": [f"{_acct(a)} [{a['candidate_id']}]: {c}"
-                                                          for a in accounts for c in a.get("contradictions", [])]
-                                                         or ["None found."]}]},
-        {"title": "Sources", "blocks": [{"list": [{"text": u, "links": [{"url": u, "label": u}]} for u in sources] or ["None"]}]},
-        {"title": "Limitations", "blocks": [{"list": [
-            "Only publicly indexed information was used; login-walled networks are marked NOT SEARCHABLE and were not accessed.",
-            "Social networks were never fetched directly; their evidence comes from search results and links the person published.",
-            "NOT FOUND means no reliable public result within the query budget, not that no account exists.",
-            "Scores are heuristic evidence scores, not probabilities. A username match alone is never treated as a match.",
-            "Historical data is limited to publicly documented dates and Internet Archive captures of personal websites."]}]},
-        {"title": "Human review required", "blocks": [{"p": (
-            "Every profile must be reviewed by a person before any action. Do not contact, expose or report anyone "
-            "based on this report alone; verify each cited source first.")}]},
-    ]

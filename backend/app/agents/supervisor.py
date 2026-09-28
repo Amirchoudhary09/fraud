@@ -3,7 +3,6 @@
     supervisor ─┬─> search   (no results yet, or no candidates and search rounds left)
                 ├─> evidence (results not yet turned into candidates)
                 ├─> matching (candidates not yet scored)
-                ├─> expansion (footprint mode: follow published links, score every account)
                 ├─> report   (scored, not yet stored)
                 └─> END
 Every worker returns to the supervisor, which re-reads the state and decides again.
@@ -37,8 +36,6 @@ def route(state: InvestigationState) -> str:
         return "search"
     if state.get("scored") is None:
         return "matching"
-    if state.get("mode") == "footprint" and state.get("footprint") is None:
-        return "expansion"
     if not state.get("reported"):
         return "report"
     return END
@@ -48,26 +45,24 @@ def build_graph(provider, search_id: str):
     g = StateGraph(InvestigationState)
     g.add_node("supervisor", lambda state: {})
     for name, fn in (("search", nodes.search_agent), ("evidence", nodes.evidence_agent),
-                     ("matching", nodes.matching_agent), ("expansion", nodes.expansion_agent),
-                     ("report", nodes.report_agent)):
+                     ("matching", nodes.matching_agent), ("report", nodes.report_agent)):
         g.add_node(name, partial(fn, tools=Toolbox(name, provider, search_id)))
         g.add_edge(name, "supervisor")
     g.set_entry_point("supervisor")
     g.add_conditional_edges("supervisor", route,
                             {"search": "search", "evidence": "evidence", "matching": "matching",
-                             "expansion": "expansion", "report": "report", END: END})
+                             "report": "report", END: END})
     return g.compile()
 
 
 def run_investigation(search_id: str, identity: IdentityInput, user_id: int | None = None,
-                      request_id: str | None = None, ip_hash: str | None = None, provider=None,
-                      mode: str = "standard") -> None:
+                      request_id: str | None = None, ip_hash: str | None = None, provider=None) -> None:
     # Runs on a worker thread: re-bind the originating request so audit events stay attributed.
     context.bind(request_id, user_id, ip_hash)
     provider = provider or get_provider()
     try:
         searches.update(search_id, status="running", stage="Supervisor: planning", started_at=now())
-        build_graph(provider, search_id).invoke({"search_id": search_id, "identity": identity, "trace": [], "mode": mode},
+        build_graph(provider, search_id).invoke({"search_id": search_id, "identity": identity, "trace": []},
                                                 {"recursion_limit": 25})
     except Exception as e:
         log.exception("search %s failed", search_id)

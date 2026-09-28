@@ -53,7 +53,6 @@ class IncidentInvestigate(BaseModel):
     company: Optional[str] = Field(default=None, max_length=100)
     college: Optional[str] = Field(default=None, max_length=100)
     location: Optional[str] = Field(default=None, max_length=100)
-    mode: Literal["standard", "footprint"] = "standard"  # footprint = map the author's other public accounts
 
 
 class EvidenceText(BaseModel):

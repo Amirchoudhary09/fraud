@@ -33,21 +33,3 @@ def broaden_queries(identity: IdentityInput) -> list[str]:
     if identity.location:
         out.append(f"{name} {identity.location}")
     return out
-
-
-def footprint_queries(identity: IdentityInput, max_queries: int) -> list[tuple[str, list[str]]]:
-    """Queries for the public-footprint mode: (query, platform keys it covers).
-
-    Platforms are bundled into `site:` groups so the whole registry fits a small query budget;
-    a public username (if given) gets its own query. The standard anchored queries still run first.
-    """
-    from . import platforms
-    name = f'"{identity.name}"'
-    out: list[tuple[str, list[str]]] = []
-    if identity.username:
-        out.append((f'"{identity.username}" {name}', []))
-    groups = platforms.site_groups(max(1, max_queries - len(out)))
-    anchor = next((a for a in (identity.company, identity.college, identity.role) if a), None)
-    for keys, sites in groups:
-        out.append((f"{name} {sites}" + (f' "{anchor}"' if anchor and len(groups) <= 2 else ""), keys))
-    return out[:max_queries]

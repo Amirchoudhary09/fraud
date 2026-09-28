@@ -11,9 +11,8 @@ import re
 from ..core import config
 from .graph import NODE_TYPE, RELATION
 
-LABELS = {"Target", "Candidate", "Source", "Profile", *NODE_TYPE.values()}
-REL_TYPES = {"CITED_BY", "HAS_PROFILE", "OWNS_WEBSITE", "LINKS_TO", *RELATION.values(),
-             *(f"INPUT_{r}" for r in RELATION.values())}
+LABELS = {"Target", "Candidate", "Source", *NODE_TYPE.values()}
+REL_TYPES = {"CITED_BY", *RELATION.values(), *(f"INPUT_{r}" for r in RELATION.values())}
 _SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 

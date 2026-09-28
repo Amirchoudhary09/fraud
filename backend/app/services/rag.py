@@ -20,15 +20,6 @@ def chunks_from_result(result: dict) -> list[dict]:
         for x in c.get("contradictions", []):
             out.append({"candidate_id": c["candidate_id"], "text": f"{c['display_name']} ({c['candidate_id']}): {x['detail']}",
                         "source_url": None, "source_title": "contradiction engine"})
-    for a in (result.get("footprint") or {}).get("accounts", []):
-        if a["status"] in ("FOUND", "POSSIBLE MATCH"):
-            src = a.get("source") or {}
-            facts = ", ".join(f"{k.removeprefix('public_')}: {a[k]}" for k in
-                              ("public_company", "public_role", "public_education", "public_location", "public_bio") if a.get(k))
-            out.append({"candidate_id": a["candidate_id"],
-                        "text": f"{a['candidate_id']} {a['platform']} account {a.get('username') or a.get('profile_url')} "
-                                f"({a['status']}, score {a['score']}). {facts}".strip(),
-                        "source_url": a.get("profile_url") or src.get("url"), "source_title": a["platform"]})
     for s in result.get("summaries", []):
         if s.get("summary"):
             out.append({"candidate_id": None, "text": f"Search '{s['query']}': {s['summary'][:1500]}",

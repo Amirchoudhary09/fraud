@@ -6,7 +6,6 @@ is added later.
 """
 from urllib.parse import urlparse
 
-from .footprint import norm_url
 from .similarity import MATCH_AT, similarity
 
 RELATION = {"company": "WORKS_AT", "college": "STUDIED_AT", "location": "LOCATED_IN",
@@ -54,24 +53,4 @@ def build(inv: dict) -> dict:
                 edge(pid, sid, "CITED_BY", src)
             if cl["field"] in RELATION:
                 edge(pid, attr(cl["field"], cl["value"]), RELATION[cl["field"]], src)
-
-    # Public-footprint accounts: Candidate -HAS_PROFILE/OWNS_WEBSITE-> Profile, Profile -LINKS_TO-> Profile.
-    fp = (inv.get("result") or {}).get("footprint") or {}
-    accounts = [a for a in fp.get("accounts", []) if a["status"] in ("FOUND", "POSSIBLE MATCH")]
-    by_url = {}
-    for a in accounts:
-        key = a.get("profile_url") or f"{a['platform']}:{a.get('username')}"
-        nid = f"prof:{key}"
-        by_url[norm_url(a.get("profile_url"))] = nid
-        label = f"{a['platform']}: {a.get('username') or urlparse(a.get('profile_url') or '').netloc}"
-        node(nid, "Profile", label, score=a["score"], band=a["status"], url=a.get("profile_url"))
-        rel = "OWNS_WEBSITE" if a["platform"] == "website" else "HAS_PROFILE"
-        edge(f"cand:{a['candidate_id']}", nid, rel, a.get("source"))
-    for a in accounts:
-        me = by_url.get(norm_url(a.get("profile_url")))
-        for link in a.get("public_links", []):
-            other = by_url.get(norm_url(link))
-            if me and other and other != me:
-                edge(me, other, "LINKS_TO", {"url": a.get("profile_url"), "title": "published link"})
     return {"nodes": list(nodes.values()), "edges": list(edges.values())}
-

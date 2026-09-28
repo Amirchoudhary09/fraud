@@ -7,8 +7,6 @@ so text from web pages can never choose which tool runs next.
   search   : web search, query expansion, progress updates, audit events
   evidence : candidate extraction, progress updates, audit events
   matching : embeddings, LLM review, read calibration, progress updates
-  expansion: fetch public personal/link-in-bio pages (never social networks), archive lookups,
-             progress updates, audit events
   report   : store the result, index evidence for Q&A, embeddings, audit events
 No agent can delete data, change users/permissions, or touch the audit log except by appending.
 """
@@ -21,7 +19,6 @@ GRANTS = {
     "search": {"web.search", "web.expand_queries", "progress", "audit.append"},
     "evidence": {"llm.extract", "progress", "audit.append"},
     "matching": {"llm.embed", "llm.judge", "calibration.read", "progress"},
-    "expansion": {"web.fetch_public_page", "web.archive", "progress", "audit.append"},
     "report": {"result.store", "rag.index", "llm.embed", "audit.append"},
 }
 
@@ -52,19 +49,9 @@ class Toolbox:
         self._need("web.expand_queries")
         return self._p.expand_queries(identity, tried)
 
-    def extract(self, identity, results, with_profiles: bool = False):
+    def extract(self, identity, results):
         self._need("llm.extract")
-        if with_profiles:  # only passed when needed, so providers without footprint support still work
-            return self._p.extract_candidates(identity, results, with_profiles=True)
         return self._p.extract_candidates(identity, results)
-
-    def fetch_public_page(self, url: str):
-        self._need("web.fetch_public_page")
-        return self._p.fetch_public_page(url)
-
-    def archive_first_capture(self, url: str):
-        self._need("web.archive")
-        return self._p.archive_first_capture(url)
 
     def matcher(self):
         """The provider facade handed to matching: only embed + judge + embed_range."""

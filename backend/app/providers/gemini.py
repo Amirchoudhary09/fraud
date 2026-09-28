@@ -8,17 +8,14 @@
 import json
 import re
 import time
-from urllib.parse import quote, urlsplit
 
 import httpx
 
-from ..schemas.identity import Candidate, Claim, IdentityInput, Profile, SourceRef, TimelineEvent
+from ..schemas.identity import Candidate, Claim, IdentityInput, SourceRef
 from ..core.privacy import redact
-from ..services import platforms, safe_fetch
 from .base import Judgement, ProviderError, SearchResult, SearchSnippet
 
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-REDIRECT_HOST = "vertexaisearch.cloud.google.com"
 
 # Untrusted-data boundary: web pages, search snippets and user-submitted comments are DATA.
 # They are fenced in <untrusted_data> tags (with any look-alike tags removed from the content),
@@ -60,27 +57,9 @@ claims. Rules:
 - evidence is a short quote/paraphrase from the snippet.
 - Never output phone numbers, emails, street addresses or ID numbers.
 
-{profiles_rules}
 Return JSON only:
 {{"candidates": [{{"display_name": str, "platform": str,
-  "claims": [{{"field": str, "value": str, "evidence": str, "source_id": str}}]{profiles_schema}}}]}}"""
-
-PROFILES_RULES = """Also list each candidate's PUBLIC accounts/pages ("profiles"), one per source that is that
-person's own profile page (social network, code host, portfolio, personal website, link-in-bio).
-- source_id is the source that IS the profile page. Do not create a profile without one.
-- Fill only fields the snippets state; leave others null. Never guess follower counts or dates.
-- links: only URLs that appear verbatim in the snippets. Never invent or complete URLs.
-- events: publicly documented dated facts (role started, project published, username changed,
-  channel created...). date as YYYY, YYYY-MM or YYYY-MM-DD, each with the source_id stating it.
-- Never output private data, phone numbers, emails, addresses, or anything about private accounts.
-- Keep different people apart even if they share a name or username."""
-
-PROFILES_SCHEMA = """,
-  "profiles": [{{"source_id": str, "platform": str, "username": str|null, "display_name": str|null,
-    "account_type": "personal"|"organisation"|"unknown", "verified": bool, "bio": str|null, "links": [str],
-    "company": str|null, "role": str|null, "education": str|null, "location": str|null,
-    "followers": str|null, "created": str|null,
-    "events": [{{"date": str, "event": str, "source_id": str}}]}}]"""
+  "claims": [{{"field": str, "value": str, "evidence": str, "source_id": str}}]}}]}}"""
 
 
 EXPAND_PROMPT = """You plan web searches for PUBLIC professional information about one person.
@@ -228,7 +207,7 @@ class GeminiProvider:
         for chunk in meta.get("groundingChunks", []) or []:
             web = chunk.get("web") or {}
             if web.get("uri"):
-                sources.append(SourceRef(url=self.resolve_source(web["uri"]), title=web.get("title", "")))
+                sources.append(SourceRef(url=web["uri"], title=web.get("title", "")))
 
         snippets = []
         for sup in meta.get("groundingSupports", []) or []:
@@ -239,40 +218,7 @@ class GeminiProvider:
 
         return SearchResult(query=query, summary=redact(text), snippets=snippets, sources=sources)
 
-    def fetch_public_page(self, url: str) -> dict | None:
-        """Public personal sites / link-in-bio pages only, via the SSRF-safe fetcher. Social networks are
-        never fetched (Terms of Service, login walls): their evidence comes from search results."""
-        if not platforms.fetchable_url(url):
-            return None
-        try:
-            return safe_fetch.fetch(url)
-        except Exception:
-            return None
-
-    def archive_first_capture(self, url: str) -> str | None:
-        """Earliest Internet Archive capture (YYYYMMDD) of a public website, from the public CDX API."""
-        try:
-            page = safe_fetch.fetch("https://web.archive.org/cdx/search/cdx?output=json&limit=1&fl=timestamp&url="
-                                    + quote(url, safe=""))
-            rows = json.loads(page["body"] or b"[]")
-            return rows[1][0][:8] if len(rows) > 1 and rows[1] else None
-        except Exception:
-            return None
-
-    def resolve_source(self, uri: str) -> str:
-        """Grounding sources are opaque Google redirect URLs. One hop (no body, no redirects followed)
-        reveals the real public URL, so profiles are identified from real URLs, never invented ones."""
-        if urlsplit(uri).hostname != REDIRECT_HOST:
-            return uri
-        try:
-            r = self.client.head(uri, follow_redirects=False, timeout=5)
-            loc = r.headers.get("location", "")
-            return loc if r.status_code in (301, 302, 303, 307, 308) and loc.startswith(("http://", "https://")) else uri
-        except httpx.HTTPError:
-            return uri
-
-    def extract_candidates(self, identity: IdentityInput, results: list[SearchResult],
-                           with_profiles: bool = False) -> list[Candidate]:
+    def extract_candidates(self, identity: IdentityInput, results: list[SearchResult]) -> list[Candidate]:
         # Number every distinct source so the model can only cite these.
         source_ids: dict[str, SourceRef] = {}
         by_url: dict[str, str] = {}
@@ -296,55 +242,14 @@ class GeminiProvider:
             sources="\n".join(f"{sid}: {src.title}" for sid, src in source_ids.items()),
             snippets=fence("\n".join(snippet_lines[:200])),
             rule=BOUNDARY_RULE,
-            profiles_rules=PROFILES_RULES if with_profiles else "",
-            profiles_schema=PROFILES_SCHEMA.replace("{{", "{").replace("}}", "}") if with_profiles else "",
         )
-        return parse_candidates(self._json(prompt), source_ids, "\n".join(s.text for r in results for s in r.snippets))
+        return parse_candidates(self._json(prompt), source_ids)
 
 
 VALID_FIELDS = {"name", "company", "college", "role", "location", "username", "other"}
 
 
-_DATE = re.compile(r"^\d{4}(-\d{2}){0,2}$")
-
-
-def _opt(v, n: int = 200) -> str | None:
-    s = redact(str(v).strip())[:n] if v not in (None, "") else ""
-    return s or None
-
-
-def parse_profiles(raw: list, source_ids: dict[str, SourceRef], snippet_text: str) -> list[Profile]:
-    """Keeps only profiles anchored to a cited source; links must appear verbatim in the snippets."""
-    out = []
-    for p in raw or []:
-        src = source_ids.get(str(p.get("source_id", "")).strip())
-        if not src:
-            continue
-        events = []
-        for e in p.get("events") or []:
-            esrc = source_ids.get(str(e.get("source_id", "")).strip())
-            date = str(e.get("date", "")).strip()
-            if esrc and _DATE.match(date) and e.get("event"):
-                events.append(TimelineEvent(date=date, platform=str(p.get("platform") or "web")[:40],
-                                            event=redact(str(e["event"]))[:300], source=esrc))
-        created = str(p.get("created") or "").strip()
-        out.append(Profile(
-            platform=str(p.get("platform") or "website").lower()[:40], username=_opt(p.get("username"), 100),
-            display_name=_opt(p.get("display_name")), profile_url=src.url,
-            account_type=p.get("account_type") if p.get("account_type") in ("personal", "organisation") else "unknown",
-            verification_status="platform_verified" if p.get("verified") is True else "unverified",
-            public_bio=_opt(p.get("bio"), 600),
-            public_links=[u for u in (p.get("links") or []) if isinstance(u, str) and u.startswith("http")
-                          and u in snippet_text][:30],
-            public_company=_opt(p.get("company")), public_role=_opt(p.get("role")),
-            public_education=_opt(p.get("education")), public_location=_opt(p.get("location")),
-            public_follower_count=_opt(p.get("followers"), 40),
-            publicly_documented_creation_date=created if _DATE.match(created) else None,
-            source=src, events=events))
-    return out
-
-
-def parse_candidates(parsed: dict, source_ids: dict[str, SourceRef], snippet_text: str = "") -> list[Candidate]:
+def parse_candidates(parsed: dict, source_ids: dict[str, SourceRef]) -> list[Candidate]:
     out = []
     for i, c in enumerate(parsed.get("candidates", []) or []):
         claims = []
@@ -365,6 +270,5 @@ def parse_candidates(parsed: dict, source_ids: dict[str, SourceRef], snippet_tex
             platform=str(c.get("platform") or claims[0].source.title or "web")[:60],
             profile_url=claims[0].source.url,
             claims=claims,
-            profiles=parse_profiles(c.get("profiles"), source_ids, snippet_text),
         ))
     return out
