@@ -22,8 +22,10 @@ AUDIT_DATABASE_URL = os.getenv("AUDIT_DATABASE_URL", "").strip() or DATABASE_URL
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(DATA_DIR / "uploads")))
 CALIBRATION_PATH = Path(os.getenv("CALIBRATION_PATH", str(DATA_DIR / "calibration.json")))
 
-# Mock mode is used automatically when no key is configured, or can be forced.
-MOCK_MODE = os.getenv("MOCK_MODE", "").lower() in ("1", "true", "yes") or not GEMINI_API_KEY
+# Mock mode is opt-in only. Never silently return example.com demo sources in production.
+MOCK_MODE = os.getenv("MOCK_MODE", "").lower() in ("1", "true", "yes")
+if not MOCK_MODE and not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY is required when MOCK_MODE is not enabled. Set GEMINI_API_KEY in the deployment environment.")
 
 MAX_QUERIES = int(os.getenv("MAX_QUERIES", "4"))
 RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "30"))
