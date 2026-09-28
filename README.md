@@ -11,10 +11,95 @@ A security-first, auditable platform for:
 
 ---
 
-## 🧑‍💻 Aapko khud kya karna hai
+## 🧑‍💻 Aapko khud kya karna hai (step-by-step checklist)
 
-| # | Kaam | Kyun |
-|---|------|------|
+Claude ki taraf se code ka kaam poora ho gaya hai: GitHub par sab push hai aur CI ke saare jobs pass hain.
+Neeche wale kaam aapke accounts ya passwords maangte hain, isliye yeh aapko khud karne honge. **Upar se neeche, isi kram mein karo.**
+
+### A. Abhi turant (security, ~5 minute)
+
+- [ ] **1. Gemini API key badlo.** Purani key chat mein share ho chuki hai.
+  https://aistudio.google.com → **API keys** → purani key **Delete** → **Create API key** se nayi banao.
+  Nayi key kisi ko mat bhejo, kisi chat mein paste mat karo, aur GitHub par commit mat karo. Yeh sirf Railway Variables mein jayegi (step 5).
+- [ ] **2. Purane local folders delete karo.** Saara code GitHub par hai, isliye inki ab zaroorat nahi:
+  - `C:\Users\amir\AppData\Local\Temp\claude\C--Users-amir\8ed568c5-650d-49c1-a52f-c3fbafd020c1\scratchpad\work`: iski `backend\.env` mein purani key hai.
+  - `C:\Users\amir\projects\identity-platform`: purana MVP.
+
+### B. Secrets banao (~3 minute)
+
+- [ ] **3.** Apne computer par yeh 3 commands chalao aur teeno output kahin **safe** jagah save kar lo (password manager best hai):
+  ```powershell
+  python -c "import secrets;print(secrets.token_urlsafe(48))"                               # JWT_SECRET
+  python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"  # EVIDENCE_KEY
+  python -c "import secrets;print(secrets.token_urlsafe(32))"                               # IP_HASH_SALT
+  ```
+  ⚠️ `EVIDENCE_KEY` kho gayi to saved evidence kabhi decrypt nahi hoga. Iska backup zaroor rakho.
+  (Doosri command ke liye `pip install cryptography` chahiye.)
+
+### C. Railway par deploy (~10 minute)
+
+- [ ] **4.** https://railway.com par login karo → **New Project** → **Deploy from GitHub repo** → `Amirchoudhary09/fraud` chuno.
+- [ ] **5. Backend service**
+  - Settings → **Root Directory** = `backend`
+  - Settings → **Volumes** → **Add Volume**, mount path `/data`
+  - **Public domain mat banana.** Backend sirf private network par rahega.
+  - **Variables** mein yeh daalo:
+    ```
+    GEMINI_API_KEY=<step 1 wali nayi key>
+    JWT_SECRET=<step 3>
+    EVIDENCE_KEY=<step 3>
+    IP_HASH_SALT=<step 3>
+    DATA_DIR=/data
+    MFA_REQUIRED_ROLES=super_admin,security_admin,investigator
+    MAX_QUERIES=3
+    MAX_JUDGED_CANDIDATES=2
+    ```
+    Aakhri do lines Gemini free-tier limit mein rehne ke liye hain.
+- [ ] **6. Frontend service:** **+ New** → **GitHub Repo** → same repo
+  - Settings → **Root Directory** = `frontend`
+  - Variables: `BACKEND_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:8000`, aur backend service mein `PORT=8000` bhi add karo.
+  - Settings → Networking → **Generate Domain**. Yahi aapki app ka URL hai.
+- [ ] **7.** Deploy logs mein dono services "Active/healthy" dikhni chahiye. Na dikhein to **Deployments → View logs** dekho.
+
+### D. Pehli baar app chalana (~5 minute)
+
+- [ ] **8.** Frontend URL kholo → **Create the first account**. Yahi account `super_admin` banega. Strong password rakho (10+ characters).
+- [ ] **9.** **Account** page → **Set up MFA** → phone ke Google/Microsoft Authenticator se QR scan karo → code daal kar confirm karo.
+- [ ] **10.** **Admin** page se team members ke accounts banao, sabse kam zaroori role ke saath:
+  - `analyst`: cases/incidents
+  - `investigator`: export
+  - `auditor`: sirf audit log
+  - `user`: sirf search
+- [ ] **11.** **Searches** mein apne naam se ek test search chalao. Mock-mode wala banner **nahi** dikhna chahiye, aur asli sources aane chahiye.
+- [ ] **12.** **Security → Audit log → Verify hash chain** dabao. "Chain intact" aana chahiye.
+
+### E. Recommended (baad mein, jab zaroorat ho)
+
+- [ ] **13. Cloudflare (WAF/DDoS):**
+  1. Domain Cloudflare par daalo.
+  2. Railway domain par proxied CNAME banao.
+  3. SSL ko **Full (strict)** par rakho.
+  4. **Managed WAF** aur **Bot Fight Mode** on karo.
+  5. `/bff/*` aur `/api/auth/*` par rate-limit rule lagao.
+- [ ] **14. Backups:** Railway volume `/data` ka regular backup lo. Isme databases, encrypted evidence aur audit log hain.
+- [ ] **15. Optional integrations.** Sab off hain jab tak variables set na ho. Poori list `backend/.env.example` mein hai:
+  - **Company login (SSO):** `OIDC_*`. Google Workspace / Microsoft Entra mein redirect URI `https://<frontend-domain>/bff/oidc/callback` rakho.
+  - **SIEM (Splunk/Elastic):** `SIEM_*`
+  - **Tamper-proof audit copy:** `WORM_S3_*`. S3 bucket **Object Lock ON** ke saath banana hoga.
+  - **Neo4j graph DB:** `NEO4J_*`
+  - **Zyada users/traffic:** Railway par PostgreSQL + Redis add karo, `DATABASE_URL` + `REDIS_URL` set karo, aur ek worker service (`./start.sh worker`) chalao. Details neeche "Running more than one backend replica" section mein hain.
+- [ ] **16. Accuracy numbers:** Searches ke results par reviewers "Correct / Wrong" dabayein. 30+ reviews ke baad **Admin → Evaluation** mein asli accuracy dikhegi, aur **Fit calibration** se confidence calibrated ho jayega.
+
+### Kabhi mat karna
+
+- ❌ API keys, `.env` file ya secrets GitHub par commit karna, ya chat/email mein bhejna
+- ❌ Backend ko public domain dena
+- ❌ Search result ko "proof of identity" maanna. Yeh sirf public evidence hai, final faisla insaan karega.
+- ❌ Private data maangna (phone number, ghar ka pata, ID numbers). App aisi requests block karti hai, aur yeh log bhi hoti hain.
+
+**Kuch atke to:** Railway logs, `GET /api/health` (frontend URL + `/api/health`) aur **Security** page dekho. Us page par security events aur errors dikhte hain.
+
+---|------|------|
 | 1 | https://aistudio.google.com par apne Google account se login karo → **Get API key** → **Create API key** | Claude aapke Google account mein login nahi kar sakta. Key ke bina app **mock mode** (demo data) mein chalti hai |
 | 2 | `backend/.env.example` ko copy karke `backend/.env` banao aur `GEMINI_API_KEY=...` bharo | Real Google search + Gemini ke liye |
 | 3 | Production ke liye `JWT_SECRET`, `EVIDENCE_KEY`, `IP_HASH_SALT` generate karke set karo (commands `.env.example` mein hain) | Secrets code mein nahi rakhe jaate |
