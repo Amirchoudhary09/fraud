@@ -296,6 +296,20 @@ These are infrastructure settings, not code.
 
 ## 🚧 Status / not done yet
 
+### ❌ Nahi bana: multi-platform "public footprint" (kisi insaan ke saare social accounts + history)
+
+**Kya maanga gaya tha:** Kisi bhi insaan ke saare accounts (Instagram, Facebook, LinkedIn, X, YouTube, TikTok, Reddit, GitHub… ~40 platforms) ek jagah jodna, unke published links follow karke aur accounts dhoondhna, aur har account ki purani history (old usernames, old bios, posts, timeline) nikalna.
+
+**Kyun nahi bana:**
+- **Stalking ka khatra:** Kisi insaan ke saare accounts aur unki history ek jagah jodna ek poori personal dossier bana deta hai. Aisi dossier ka sabse aam galat istemaal stalking, doxxing aur harassment hai, aur jis insaan ko search kiya gaya use pata bhi nahi hota.
+- **Platforms ke Terms aur login walls:** Instagram, Facebook, LinkedIn aur Snapchat ka zyada tar data login ke peeche hai, aur unke Terms scraping mana karte hain.
+- **Kanooni risk:** India ke DPDP Act 2023 ke tehat kisi ki personal information ka is tarah bina consent collection aur profiling legal risk hai.
+- **Code revert kiya:** Ek version (commit `a782b7f`) bana kar push hua tha, lekin use commit `2fbd034` se revert kar diya gaya. Woh code history mein hai, lekin app mein active nahi hai.
+
+**App abhi kya karti hai (standard mode):** Naam + clues se public web par sabse relevant public profiles dhoondhti hai. Har claim ke saath source hota hai, "Why this score?" hota hai, contradictions dikhte hain, aur faisla insaan leta hai. Harassment cases mein kisi incident ke author ki public profile case ke andar dhoondhi ja sakti hai. Yeh audit log mein record hota hai aur platform/police report ke liye hota hai.
+
+### ✅ / ⏳ Baaki status
+
 - [x] Backend: every feature listed above, with 70 automated tests.
 - [x] Frontend: every page listed above. `next build` passes. End-to-end checked locally: setup → httpOnly refresh cookie → refresh → search through the proxy → PDF → logout.
 - [x] Railway files: Dockerfiles, `railway.json`, `.dockerignore`.
