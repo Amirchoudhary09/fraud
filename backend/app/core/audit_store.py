@@ -123,6 +123,24 @@ def query(*, case_id: str | None = None, actor_user_id: int | None = None, event
         conn.close()
 
 
+def after(seq: int, limit: int = 500) -> list[dict]:
+    """Events with seq > given seq, oldest first (for export to SIEM / WORM storage)."""
+    conn = _connect()
+    try:
+        return [dict(r) for r in conn.execute("SELECT * FROM audit_events WHERE seq > ? ORDER BY seq LIMIT ?",
+                                              (seq, limit)).fetchall()]
+    finally:
+        conn.close()
+
+
+def head_seq() -> int:
+    conn = _connect()
+    try:
+        return conn.execute("SELECT COALESCE(MAX(seq), 0) FROM audit_events").fetchone()[0]
+    finally:
+        conn.close()
+
+
 def for_case(case_id: str, search_ids: list[str], limit: int = 2000) -> list[dict]:
     """Every event of a case, including the per-step events of searches run inside it (oldest first)."""
     args: list = [case_id, *search_ids]

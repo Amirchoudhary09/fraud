@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api import middleware
 from .api.routes import admin, auth, cases, me, searches
 from .core import audit_store, config, database
-from .services import retention
+from .services import exporters, retention
 from .workers import jobs
 
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +21,9 @@ async def lifespan(_app: FastAPI):
     jobs.fail_interrupted()
     retention.purge()
     jobs.start()
+    exporters.start()
     yield
+    exporters.stop()
     jobs.stop()
 
 

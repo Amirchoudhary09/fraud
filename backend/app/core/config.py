@@ -68,6 +68,17 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 # Calibrated confidence is only shown once this many reviewed labels were used to fit it.
 MIN_CALIBRATION_LABELS = int(os.getenv("MIN_CALIBRATION_LABELS", "30"))
 
+# Audit export (optional). Events are shipped from a cursor every EXPORT_INTERVAL seconds.
+EXPORT_INTERVAL = int(os.getenv("EXPORT_INTERVAL", "30"))
+SIEM_WEBHOOK_URL = os.getenv("SIEM_WEBHOOK_URL", "").strip()          # e.g. https://splunk:8088/services/collector
+SIEM_FORMAT = os.getenv("SIEM_FORMAT", "json").strip()                # json | splunk_hec
+SIEM_AUTH_HEADER = os.getenv("SIEM_AUTH_HEADER", "").strip()          # e.g. "Splunk <token>"
+WORM_S3_BUCKET = os.getenv("WORM_S3_BUCKET", "").strip()              # bucket created WITH Object Lock
+WORM_S3_PREFIX = os.getenv("WORM_S3_PREFIX", "audit/").strip()
+WORM_S3_ENDPOINT = os.getenv("WORM_S3_ENDPOINT", "").strip()          # empty = AWS; or MinIO/B2 endpoint
+WORM_S3_REGION = os.getenv("WORM_S3_REGION", "").strip()
+WORM_RETENTION_DAYS = int(os.getenv("WORM_RETENTION_DAYS", "2555"))   # ~7 years
+
 # Redis (optional): shared rate limits and a reliable job queue for multiple API replicas.
 # When set, run `python -m app.workers.worker` as a separate service to execute jobs.
 REDIS_URL = os.getenv("REDIS_URL", "").strip()

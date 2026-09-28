@@ -213,6 +213,11 @@ CREATE TABLE IF NOT EXISTS security_events (
     dedupe_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sec_dedupe ON security_events(dedupe_key, ts);
+CREATE TABLE IF NOT EXISTS kv (                 -- small operational state, e.g. export cursors
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 

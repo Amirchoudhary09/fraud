@@ -9,3 +9,4 @@ cryptography==50.0.1
 fpdf2==2.8.8
 langgraph==1.2.12
 redis==8.1.0
+boto3==1.43.103

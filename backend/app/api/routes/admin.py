@@ -7,7 +7,7 @@ from ...core import audit_store, config
 from ...core.database import ago, in_future
 from ...evaluation import dataset, metrics
 from ...repositories import cases, evidence, incidents, searches, security_events, users
-from ...services import audit, calibration, retention
+from ...services import audit, calibration, exporters, retention
 from ..deps import need
 from ..middleware import error_counts
 
@@ -30,6 +30,19 @@ def verify_audit(_: dict = Depends(need("audit.verify"))):
     audit.record("AUDIT_VERIFIED" if result["ok"] else "AUDIT_CHAIN_BROKEN",
                  result="SUCCESS" if result["ok"] else "FAILED", detail=result)
     return result
+
+
+@router.get("/exports")
+def export_status(_: dict = Depends(need("audit.view"))):
+    """SIEM / WORM export cursors, lag and last error."""
+    return exporters.status()
+
+
+@router.post("/exports/run")
+def run_exports(_: dict = Depends(need("security.manage"))):
+    exporters.run_all()
+    audit.record("AUDIT_EXPORT_RUN")
+    return exporters.status()
 
 
 # --- security monitoring ---------------------------------------------------------------
