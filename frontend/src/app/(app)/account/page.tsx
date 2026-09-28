@@ -1,4 +1,5 @@
 "use client";
+import QRCode from "qrcode";
 import { useState, type FormEvent } from "react";
 import { Badge, ErrorText, fmtTime } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -9,6 +10,17 @@ export default function AccountPage() {
   const [setup, setSetup] = useState<{ secret: string; otpauth_uri: string } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+
+  async function startSetup() {
+    try {
+      const s = await api.mfaSetup();
+      // QR is rendered locally in the browser; the secret is never sent to a third-party QR service.
+      setQr(await QRCode.toDataURL(s.otpauth_uri, { margin: 1, width: 200 }).catch(() => null));
+      setSetup(s);
+    } catch (err) { setError(err); }
+  }
+
   if (!user) return null;
 
   async function confirmCode(e: FormEvent<HTMLFormElement>) {
@@ -54,12 +66,17 @@ export default function AccountPage() {
         ) : !setup ? (
           <>
             <p className="muted">Protect your account with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…).</p>
-            <button className="primary" onClick={() => api.mfaSetup().then(setSetup).catch(setError)}>Set up MFA</button>
+            <button className="primary" onClick={startSetup}>Set up MFA</button>
           </>
         ) : (
           <form onSubmit={confirmCode}>
             <ol>
-              <li>In your authenticator app choose <b>Enter a setup key</b>. Use account <code>{user.email}</code> and this key:
+              <li>Scan this QR code with your authenticator app:
+                {qr && <div style={{ margin: "8px 0" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data: URL generated locally */}
+                  <img src={qr} alt="MFA QR code" width={200} height={200} style={{ background: "#fff", padding: 6, borderRadius: 6 }} />
+                </div>}
+                or choose <b>Enter a setup key</b>. Use account <code>{user.email}</code> and this key:
                 <div style={{ margin: "6px 0" }}><code style={{ fontSize: 16, letterSpacing: 2 }}>{setup.secret.match(/.{1,4}/g)?.join(" ")}</code></div>
                 <div className="muted small">Or open this link on your phone: <a href={setup.otpauth_uri}>otpauth link</a></div></li>
               <li>Enter the 6-digit code it shows:</li>

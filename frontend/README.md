@@ -17,7 +17,7 @@ src/
       cases/                 case list/create; [id]: incidents, evidence, searches, timeline, access, reports
       security/              security dashboard, security events, break-glass approvals, audit log + chain verify
       admin/                 users & roles, MFA reset, evaluation, calibration, retention
-      account/               MFA (TOTP) enrolment
+      account/               MFA (TOTP) enrolment with a locally generated QR code
     api/[...path]/route.ts   backend proxy
     bff/[action]/route.ts    session / refresh-cookie handling
   components/                AppShell, CandidateCard, EvidenceGraph (SVG), ReportViewer (sandboxed iframe),
@@ -29,4 +29,5 @@ src/
 npm install
 BACKEND_URL=http://localhost:8000 npm run dev     # http://localhost:3000
 npm run build                                     # standalone output for Docker/Railway
+npx playwright install chromium && npm run test:e2e   # end-to-end tests
 ```

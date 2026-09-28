@@ -118,7 +118,7 @@ Next.js 16 + TypeScript. Details are in [frontend/README.md](frontend/README.md)
   - Cases: incidents (with AI indicators and "find public profile of @handle"), evidence (text / public URL / file, SHA-256, integrity verify, download), searches in the case, **evidence timeline**, access (grant/revoke, time limits, access history), reports (with hashes).
   - Security: dashboard, security events (acknowledge / resolve), break-glass approvals, audit log viewer with **hash-chain verification**.
   - Admin: users and roles, MFA reset, evaluation, calibration, retention.
-  - Account: MFA enrolment.
+  - Account: MFA enrolment with a QR code generated in the browser.
 - **Reports.** Rendered in a **sandboxed iframe** (no scripts). PDF export needs the `evidence.export` permission and is audited.
 - **Browser hardening.** Security headers (CSP, frame-ancestors none, HSTS, nosniff) and no `X-Powered-By` header.
 
@@ -136,6 +136,10 @@ cd backend
 cd frontend
 npm install
 $env:BACKEND_URL="http://localhost:8000"; npm run dev
+
+# end-to-end tests (start their own backend + frontend on ports 8799/3799)
+npx playwright install chromium
+npm run test:e2e
 ```
 
 Open http://localhost:3000. The first account you create becomes `super_admin`.
@@ -179,7 +183,8 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
   - `docker build`: Docker is not installed on this machine.
   - A real Railway deploy: needs your login.
   - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
-- [ ] No frontend unit/E2E test suite yet (e.g. Playwright). The backend has 70 tests.
+- [x] **Playwright end-to-end tests** (`frontend/e2e`, 4 flows in real Chromium): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
+- [x] **GitHub Actions CI** (`.github/workflows/ci.yml`): backend tests, frontend lint/type-check/build, and the E2E suite on every push and pull request.
 - [ ] Needs infrastructure beyond one container, so intentionally not in V1:
   - Cloud WAF/CDN/DDoS (use Cloudflare or Railway's edge).
   - KMS/secrets manager (Railway variables for now).
@@ -189,5 +194,4 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
   - Neo4j and a vector database (graph and vectors are computed and stored in SQLite today).
   - MongoDB/PostgreSQL (only `repositories/` would change).
   - OAuth/OIDC single sign-on (email + password + TOTP MFA today).
-  - QR code for MFA setup (the setup key and an otpauth link are shown instead).
 - [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).
