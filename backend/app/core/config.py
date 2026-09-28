@@ -89,6 +89,12 @@ WORM_S3_ENDPOINT = os.getenv("WORM_S3_ENDPOINT", "").strip()          # empty = 
 WORM_S3_REGION = os.getenv("WORM_S3_REGION", "").strip()
 WORM_RETENTION_DAYS = int(os.getenv("WORM_RETENTION_DAYS", "2555"))   # ~7 years
 
+# Neo4j (optional): push evidence graphs to a graph database.
+NEO4J_URI = os.getenv("NEO4J_URI", "").strip()                        # e.g. neo4j+s://xxxx.databases.neo4j.io
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j").strip()
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "").strip()
+NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "").strip()
+
 # Redis (optional): shared rate limits and a reliable job queue for multiple API replicas.
 # When set, run `python -m app.workers.worker` as a separate service to execute jobs.
 REDIS_URL = os.getenv("REDIS_URL", "").strip()

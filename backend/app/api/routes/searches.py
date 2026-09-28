@@ -1,14 +1,14 @@
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from ...core import config, permissions, ratelimit
 from ...providers import get_provider
 from ...reports import builder, html, pdf
 from ...repositories import reports, searches
 from ...schemas.identity import FeedbackRequest, InvestigationRequest, Question
-from ...services import audit, graph, intake, rag
+from ...services import audit, graph, graph_export, intake, rag
 from ..access import case_access, search_access
 from ..deps import deny, need
 
@@ -86,6 +86,31 @@ def feedback(search_id: str, cand_id: str, fb: FeedbackRequest, user: dict = Dep
 @router.get("/{search_id}/graph")
 def evidence_graph(search_id: str, user: dict = Depends(need("search.view_own"))):
     return graph.build(_completed(user, search_id))
+
+
+@router.get("/{search_id}/graph.cypher", response_class=PlainTextResponse)
+def graph_cypher(search_id: str, user: dict = Depends(need("evidence.export"))):
+    """Evidence graph as a Cypher script for Neo4j (download, audited)."""
+    s = _completed(user, search_id)
+    audit.record("GRAPH_EXPORTED", target_type="SEARCH", target_id=search_id, search_id=search_id,
+                 case_id=s["case_id"], detail={"format": "cypher"})
+    return PlainTextResponse(graph_export.to_cypher(search_id, graph.build(s)),
+                             headers={"Content-Disposition": f'attachment; filename="graph-{search_id}.cypher"'})
+
+
+@router.post("/{search_id}/graph/neo4j")
+def graph_push(search_id: str, user: dict = Depends(need("evidence.export"))):
+    """Pushes the evidence graph into the configured Neo4j database (idempotent MERGE)."""
+    if not graph_export.enabled():
+        raise HTTPException(404, "Neo4j is not configured (NEO4J_URI)")
+    s = _completed(user, search_id)
+    try:
+        out = graph_export.push(search_id, graph.build(s))
+    except Exception as e:
+        raise HTTPException(502, f"Neo4j push failed: {type(e).__name__}")
+    audit.record("GRAPH_PUSHED", target_type="SEARCH", target_id=search_id, search_id=search_id,
+                 case_id=s["case_id"], detail=out)
+    return out
 
 
 @router.post("/{search_id}/ask")

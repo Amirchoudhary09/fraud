@@ -189,6 +189,9 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
   - The IdP subject is bound to one local account.
   - The state is also tied to the browser by a cookie, which blocks login CSRF.
   - Tested with 13 backend tests (forged, expired, wrong-audience and wrong-key tokens, account takeover) and 2 browser E2E tests against a fake IdP.
+- [x] **Neo4j**:
+  - `GET /api/searches/{id}/graph.cypher` downloads the evidence graph as a Cypher script. Every value is escaped and labels come from an allowlist, so web data cannot inject Cypher.
+  - `POST /api/searches/{id}/graph/neo4j` pushes the graph into a live Neo4j (`NEO4J_URI`) with parameterised, idempotent MERGE. Both actions are audited, and CI checks the push against a real Neo4j.
 - [ ] **Not verified by Claude:**
   - A real Railway deploy: needs your login.
   - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
@@ -197,6 +200,6 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
 - [ ] Needs infrastructure beyond one container, so intentionally not in V1:
   - Cloud WAF/CDN/DDoS (use Cloudflare or Railway's edge).
   - KMS/secrets manager (Railway variables for now).
-  - Neo4j and a vector database (graph and vectors are computed and stored in SQLite today).
+  - A dedicated vector database (vectors are stored in SQLite today, and brute-force search is fine per investigation).
   - MongoDB/PostgreSQL (only `repositories/` would change).
 - [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).
