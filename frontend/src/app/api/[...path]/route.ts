@@ -2,7 +2,7 @@
 // request time, so one frontend build works against any backend (local, Railway private network).
 import type { NextRequest } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const BACKEND = (process.env.BACKEND_URL ?? "https://fraud-backend-v21n.onrender.com").replace(/\/$/, "");
 const FORWARD_REQUEST = ["authorization", "content-type", "accept"];
 const FORWARD_RESPONSE = ["content-type", "content-disposition", "content-security-policy"];
 
