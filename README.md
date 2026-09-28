@@ -183,15 +183,20 @@ Keep `EVIDENCE_KEY` safe. Without it, stored evidence cannot be decrypted. With 
 - [x] **Redis (optional, `REDIS_URL`)**: shared sliding-window rate limits and a reliable job queue. Jobs held by a crashed worker are re-queued once its heartbeat expires. Run `python -m app.workers.worker` as a separate service. Tested with fakeredis, and against a real Redis in CI.
 - [x] **SIEM export** (`SIEM_WEBHOOK_URL`): audit events are shipped in order from a cursor, as generic JSON or Splunk HEC, with an auth header. The cursor only advances after the SIEM accepts a batch, so delivery is at-least-once and nothing is skipped. Status and lag are at `GET /api/admin/exports`.
 - [x] **WORM storage** (`WORM_S3_BUCKET`): audit segments are written to S3/MinIO with **Object Lock COMPLIANCE**, a retention date and a SHA-256 checksum, with chain hashes in the object metadata. CI proves on real MinIO that a locked segment cannot be deleted.
+- [x] **OIDC single sign-on** (`OIDC_*`): works with Google Workspace, Microsoft Entra ID, Okta, Auth0 and Keycloak.
+  - Authorization code flow with PKCE, single-use `state`, `nonce` check, and id_token signature verified against the IdP's JWKS (`iss`/`aud`/`exp` checked too).
+  - Only verified emails are accepted, with an optional email-domain allowlist and optional MFA-at-IdP (`amr`).
+  - The IdP subject is bound to one local account.
+  - The state is also tied to the browser by a cookie, which blocks login CSRF.
+  - Tested with 13 backend tests (forged, expired, wrong-audience and wrong-key tokens, account takeover) and 2 browser E2E tests against a fake IdP.
 - [ ] **Not verified by Claude:**
   - A real Railway deploy: needs your login.
   - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
-- [x] **Playwright end-to-end tests** (`frontend/e2e`, 4 flows in real Chromium): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
+- [x] **Playwright end-to-end tests** (`frontend/e2e`, 6 flows in real Chromium, including SSO and login-CSRF): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
 - [x] **GitHub Actions CI** (`.github/workflows/ci.yml`): backend tests, frontend lint/type-check/build, and the E2E suite on every push and pull request.
 - [ ] Needs infrastructure beyond one container, so intentionally not in V1:
   - Cloud WAF/CDN/DDoS (use Cloudflare or Railway's edge).
   - KMS/secrets manager (Railway variables for now).
   - Neo4j and a vector database (graph and vectors are computed and stored in SQLite today).
   - MongoDB/PostgreSQL (only `repositories/` would change).
-  - OAuth/OIDC single sign-on (email + password + TOTP MFA today).
 - [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).

@@ -36,6 +36,16 @@ REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", "7"))
 # Roles that must enrol MFA before they can use the API (comma-separated, empty = optional for all).
 MFA_REQUIRED_ROLES = [r.strip() for r in os.getenv("MFA_REQUIRED_ROLES", "").split(",") if r.strip()]
 
+# OIDC single sign-on (optional): Google Workspace, Microsoft Entra ID, Okta, Auth0, Keycloak...
+OIDC_ISSUER = os.getenv("OIDC_ISSUER", "").strip()                  # e.g. https://accounts.google.com
+OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "").strip()
+OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", "").strip()
+OIDC_REDIRECT_URI = os.getenv("OIDC_REDIRECT_URI", "").strip()      # https://<frontend>/bff/oidc/callback
+OIDC_PROVIDER_NAME = os.getenv("OIDC_PROVIDER_NAME", "SSO").strip()
+OIDC_DEFAULT_ROLE = os.getenv("OIDC_DEFAULT_ROLE", "user").strip()  # role for first-time SSO users
+OIDC_ALLOWED_DOMAINS = [d.strip().lower() for d in os.getenv("OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()]
+OIDC_REQUIRE_MFA = os.getenv("OIDC_REQUIRE_MFA", "").lower() in ("1", "true", "yes")  # require amr=mfa
+
 # Evidence encryption at rest (Fernet key, 32 url-safe base64 bytes). Use a KMS-managed key in production.
 EVIDENCE_KEY = os.getenv("EVIDENCE_KEY", "").strip()
 

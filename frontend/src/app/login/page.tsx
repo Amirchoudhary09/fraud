@@ -13,11 +13,12 @@ function LoginForm() {
   const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
+  const [sso, setSso] = useState<{ enabled: boolean; name: string } | null>(null);
   const [mfaToken, setMfaToken] = useState<string | null>(null);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<unknown>(params.get("error"));
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { api.authStatus().then((s) => setNeedsSetup(s.needs_setup)).catch(setError); }, []);
+  useEffect(() => { api.authStatus().then((s) => { setNeedsSetup(s.needs_setup); setSso(s.sso); }).catch(setError); }, []);
   useEffect(() => { if (!loading && user) router.replace(target); }, [loading, user, router, target]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -72,6 +73,15 @@ function LoginForm() {
       <button className="primary" style={{ width: "100%" }} disabled={busy}>
         {busy ? "Please wait…" : mfaToken ? "Verify" : needsSetup ? "Create account" : "Sign in"}
       </button>
+      {sso?.enabled && !needsSetup && !mfaToken && (
+        <>
+          <div className="muted small" style={{ textAlign: "center", margin: "10px 0" }}>or</div>
+          {/* A plain link, not <Link> or a form: /bff/oidc/start is a route handler that redirects to the IdP.
+              A form submission would be blocked by the CSP form-action 'self' rule on that cross-origin redirect. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="button-link" href="/bff/oidc/start">Sign in with {sso.name}</a>
+        </>
+      )}
       <p className="muted small" style={{ marginTop: 12 }}>
         Access is logged. Only use this system for lawful purposes with publicly available information.
       </p>

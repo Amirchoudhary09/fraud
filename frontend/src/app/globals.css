@@ -119,3 +119,5 @@ summary { cursor: pointer; font-weight: 600; }
 .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; background: var(--c); vertical-align: middle; }
 pre.answer { white-space: pre-wrap; font: inherit; background: var(--panel-2); padding: 10px; border-radius: 6px; }
+.button-link { display: block; text-align: center; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); }
+.button-link:hover { background: var(--panel-2); text-decoration: none; }

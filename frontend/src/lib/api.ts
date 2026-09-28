@@ -73,7 +73,7 @@ export const api = {
   health: () => request<Health>("/api/health"),
 
   // session
-  authStatus: () => request<{ needs_setup: boolean; mfa_required_roles: string[] }>("/api/auth/status"),
+  authStatus: () => request<{ needs_setup: boolean; mfa_required_roles: string[]; sso: { enabled: boolean; name: string } }>("/api/auth/status"),
   setup: (email: string, password: string) => bff<Session>("setup", { email, password }),
   login: (email: string, password: string) => bff<LoginResult>("login", { email, password }),
   loginMfa: (mfa_token: string, code: string) => bff<Session>("mfa", { mfa_token, code }),

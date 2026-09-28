@@ -20,7 +20,7 @@ async function signIn(page: Page, email = ADMIN.email, password = ADMIN.password
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "My dashboard" })).toBeVisible();
 }
 
@@ -104,7 +104,7 @@ test("MFA enrolment with QR code, then sign-in requires a code", async ({ page }
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.getByLabel("Email").fill(ADMIN.email);
   await page.getByLabel("Password", { exact: true }).fill(ADMIN.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Two-factor code" })).toBeVisible();
   await page.getByLabel(/6-digit code/).fill(totp(secret));
   await page.getByRole("button", { name: "Verify" }).click();
@@ -117,4 +117,21 @@ test("MFA enrolment with QR code, then sign-in requires a code", async ({ page }
   await page.getByRole("tab", { name: "Audit log" }).click();
   await page.getByRole("button", { name: "Verify hash chain" }).click();
   await expect(page.getByText(/Chain intact/)).toBeVisible();
+});
+
+test("single sign-on through an OIDC provider", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Sign in with Corp SSO" }).click();
+  // fake IdP authenticates and redirects back; the BFF verifies state and sets the session cookie
+  await expect(page.getByRole("heading", { name: "My dashboard" })).toBeVisible();
+  await expect(page.getByText("sso@corp.test")).toBeVisible();
+  const cookies = await page.context().cookies();
+  expect(cookies.find((c) => c.name === "ie_rt")?.httpOnly).toBe(true);
+  expect(cookies.find((c) => c.name === "ie_oidc_state")).toBeUndefined(); // one-time state cookie cleared
+});
+
+test("forged SSO callback is rejected (login CSRF)", async ({ page }) => {
+  await page.goto("/bff/oidc/callback?code=attacker-code&state=attacker-state");
+  await expect(page).toHaveURL(/\/login\?error=/);
+  await expect(page.getByText("Sign-in could not be verified. Please try again.")).toBeVisible();
 });

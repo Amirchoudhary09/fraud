@@ -35,3 +35,8 @@ class MfaCode(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=20, max_length=200)
+
+
+class OidcCallback(BaseModel):
+    code: str = Field(min_length=1, max_length=4000)
+    state: str = Field(min_length=10, max_length=200)

@@ -1,3 +1,4 @@
+import secrets
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -6,9 +7,10 @@ from ...core import config, crypto, permissions, ratelimit
 from ...core.database import now
 from ...core.security import (create_access_token, create_mfa_token, decode_token, hash_password, hash_refresh_token,
                               new_refresh_token, new_totp_secret, totp_uri, verify_password, verify_totp)
-from ...repositories import users
-from ...schemas.auth import Credentials, LoginRequest, MfaCode, MfaLogin, NewUser, RefreshRequest, UserUpdate
-from ...services import audit
+from ...repositories import kv, users
+from ...schemas.auth import (Credentials, LoginRequest, MfaCode, MfaLogin, NewUser, OidcCallback, RefreshRequest,
+                             UserUpdate)
+from ...services import audit, oidc
 from ..deps import client_ip, current_user, deny, need, user_allow_pending_mfa
 
 router = APIRouter(tags=["auth"])
@@ -28,7 +30,8 @@ def _me(user: dict) -> dict:
 
 @router.get("/api/auth/status")
 def status():
-    return {"needs_setup": users.count() == 0, "mfa_required_roles": config.MFA_REQUIRED_ROLES}
+    return {"needs_setup": users.count() == 0, "mfa_required_roles": config.MFA_REQUIRED_ROLES,
+            "sso": {"enabled": oidc.enabled(), "name": config.OIDC_PROVIDER_NAME}}
 
 
 @router.post("/api/auth/setup", status_code=201)
@@ -69,6 +72,50 @@ def login_mfa(body: MfaLogin, request: Request):
     users.update(row["id"], last_login_at=now())
     audit.record("AUTH_LOGIN_SUCCESS", target_type="USER", target_id=str(row["id"]), actor_user_id=row["id"],
                  detail="mfa")
+    return _session(users.get(row["id"]))
+
+
+# --- OIDC single sign-on ----------------------------------------------------------------
+
+@router.post("/api/auth/oidc/start")
+def oidc_start(request: Request):
+    if not oidc.enabled():
+        raise HTTPException(404, "Single sign-on is not configured")
+    ratelimit.check(f"oidc:{client_ip(request)}", 60)
+    return {"authorization_url": oidc.start()}
+
+
+@router.post("/api/auth/oidc/callback")
+def oidc_callback(body: OidcCallback, request: Request):
+    if not oidc.enabled():
+        raise HTTPException(404, "Single sign-on is not configured")
+    ratelimit.check(f"oidc:{client_ip(request)}", 60)
+    try:
+        claims = oidc.callback(body.code, body.state)
+    except Exception as e:  # any IdP/network failure is a failed login, never a 500
+        audit.record("AUTH_LOGIN_FAILED", result="FAILED", detail=f"sso: {str(e)[:200]}")
+        raise HTTPException(401, str(e) if isinstance(e, oidc.OidcError) else "Single sign-on failed")
+
+    # The IdP subject is bound to one local account, so a changed/recycled email cannot take over another user.
+    linked = kv.get(f"oidc:sub:{claims['sub']}")
+    row = users.get_by_email_private(claims["email"])
+    if linked is not None and (not row or row["id"] != linked):
+        audit.record("AUTH_LOGIN_FAILED", result="DENIED", detail="sso subject linked to a different account")
+        raise HTTPException(401, "This identity is linked to a different account. Contact an administrator.")
+    if row is None:
+        user = users.create(claims["email"], hash_password(secrets.token_urlsafe(48)), config.OIDC_DEFAULT_ROLE)
+        audit.record("USER_CREATED", target_type="USER", target_id=str(user["id"]), actor_user_id=user["id"],
+                     detail={"role": user["role"], "via": "sso"})
+        row = users.get_by_email_private(claims["email"])
+    if row["status"] != "active":
+        audit.record("AUTH_LOGIN_FAILED", target_type="USER", target_id=str(row["id"]), result="DENIED",
+                     detail="sso: account disabled")
+        raise HTTPException(401, "Your account is disabled")
+    if linked is None:
+        kv.set(f"oidc:sub:{claims['sub']}", row["id"])
+    users.update(row["id"], last_login_at=now())
+    audit.record("AUTH_LOGIN_SUCCESS", target_type="USER", target_id=str(row["id"]), actor_user_id=row["id"],
+                 detail={"method": "sso", "provider": config.OIDC_PROVIDER_NAME, "amr": claims["amr"]})
     return _session(users.get(row["id"]))
 
 
