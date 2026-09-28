@@ -233,9 +233,15 @@ These are infrastructure settings, not code.
   - Chain appends are serialised with an advisory lock, so several replicas cannot fork the hash chain.
   - The full backend suite runs on PostgreSQL 16 locally and in CI.
   - Together with Redis, this is the setup for running more than one API replica.
+- [x] **Real Gemini, verified locally with a real API key.** A self-check search for "Amir Choudhary / WASP3D / GLBITM / Software Developer" ran the whole pipeline:
+  - Google-grounded search, extraction of cited claims, embeddings and LLM review all worked.
+  - It found one public candidate: a GitHub profile, "Software Development Engineer" at WASP3D, scored 71/100 ("possible"). No college was found publicly, so that signal stayed "unknown".
+  - The free tier hit its per-minute quota on the next call. Those errors are now retried and then returned as a clear 503 with `Retry-After`.
+  - Grounded search is not deterministic: the same query sometimes returns sources and sometimes not.
 - [ ] **Not verified by Claude:**
   - A real Railway deploy: needs your login.
-  - Real Gemini calls: needs your API key. Everything was tested in mock mode. The Gemini response parsing has unit tests against recorded response shapes.
+  - Real AWS S3 Object Lock: tested with the moto emulator only.
+- **Gemini free tier:** one search makes about 8–12 model calls (4 searches, extraction, embeddings, up to 5 LLM reviews). To stay within free-tier limits, lower `MAX_QUERIES` and `MAX_JUDGED_CANDIDATES`, set `LLM_JUDGE=0`, or enable billing.
 - [x] **Playwright end-to-end tests** (`frontend/e2e`, 6 flows in real Chromium, including SSO and login-CSRF): first-account setup and httpOnly session; search with "Why N?", graph and ask; case → incident → evidence integrity → timeline; MFA enrolment by QR code, then MFA sign-in and audit-chain verification.
 - [x] **GitHub Actions CI** (`.github/workflows/ci.yml`): backend tests, frontend lint/type-check/build, and the E2E suite on every push and pull request.
 - [ ] Needs infrastructure beyond one container, so intentionally not in V1:
