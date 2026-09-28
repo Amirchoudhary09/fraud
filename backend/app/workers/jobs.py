@@ -29,8 +29,9 @@ HEARTBEAT = "ie:heartbeat:"     # + worker id  (key with TTL)
 HEARTBEAT_TTL = 30
 
 
-def _run_search(search_id: str, identity: dict, user_id: int | None, request_id: str | None, ip_hash: str | None):
-    run_investigation(search_id, IdentityInput(**identity), user_id, request_id, ip_hash)
+def _run_search(search_id: str, identity: dict, user_id: int | None, request_id: str | None, ip_hash: str | None,
+                mode: str = "standard"):
+    run_investigation(search_id, IdentityInput(**identity), user_id, request_id, ip_hash, mode=mode)
 
 
 REGISTRY = {"run_search": _run_search}

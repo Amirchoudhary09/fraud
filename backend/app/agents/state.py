@@ -11,4 +11,7 @@ class InvestigationState(TypedDict, total=False):
     candidates: Optional[list]    # Candidate; None = evidence agent has not run yet
     scored: Optional[list]        # ScoredCandidate; None = matching agent has not run yet
     reported: bool
+    mode: str                     # standard | footprint
+    searched_platforms: list[str]
+    footprint: Optional[dict]     # None = expansion agent has not run yet (footprint mode)
     trace: list[dict]             # which agent ran, why, and what it produced

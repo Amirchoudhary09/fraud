@@ -28,6 +28,13 @@ MOCK_MODE = os.getenv("MOCK_MODE", "").lower() in ("1", "true", "yes") or not GE
 MAX_QUERIES = int(os.getenv("MAX_QUERIES", "4"))
 RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "30"))
 
+# Public-footprint mode (multi-platform discovery). Every value is a hard budget per search.
+FOOTPRINT_MAX_QUERIES = int(os.getenv("FOOTPRINT_MAX_QUERIES", "6"))     # site-group searches
+FOOTPRINT_MAX_ROUNDS = int(os.getenv("FOOTPRINT_MAX_ROUNDS", "2"))       # link-expansion rounds
+FOOTPRINT_MAX_FETCHES = int(os.getenv("FOOTPRINT_MAX_FETCHES", "5"))     # public pages fetched (never social networks)
+FOOTPRINT_MAX_LEADS = int(os.getenv("FOOTPRINT_MAX_LEADS", "25"))        # new linked profiles followed
+FOOTPRINT_RATE_PER_DAY = int(os.getenv("FOOTPRINT_RATE_PER_DAY", "20"))  # footprint searches per user per day
+
 # Hybrid matching: the LLM judge costs one extra model call per candidate.
 LLM_JUDGE = os.getenv("LLM_JUDGE", "1").lower() in ("1", "true", "yes")
 MAX_JUDGED_CANDIDATES = int(os.getenv("MAX_JUDGED_CANDIDATES", "5"))

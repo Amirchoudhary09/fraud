@@ -161,7 +161,7 @@ def investigate_author(case_id: str, incident_id: str, hints: IncidentInvestigat
     identity = IdentityInput(name=hints.name or handle, username=handle, company=hints.company,
                              college=hints.college, location=hints.location)
     sid = intake.start_search(identity, case["purpose"], user, case_id=case_id, incident_id=incident_id,
-                              search_type="INCIDENT_AUTHOR")
+                              search_type="INCIDENT_AUTHOR", mode=hints.mode)
     return {"id": sid}
 
 
