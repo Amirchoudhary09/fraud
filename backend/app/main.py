@@ -2,12 +2,14 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import middleware
 from .api.routes import admin, auth, cases, me, searches
 from .core import audit_store, config, database
+from .providers.base import ProviderError
 from .services import exporters, retention
 from .workers import jobs
 
@@ -32,6 +34,14 @@ app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_cred
                    allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["Authorization", "Content-Type"],
                    expose_headers=["Content-Disposition", "X-Request-ID", "X-Evidence-SHA256"])
 middleware.install(app)
+
+
+@app.exception_handler(ProviderError)
+async def provider_error(_request: Request, exc: ProviderError):
+    """AI provider outages/quotas become a clear 503 instead of a crash."""
+    msg = ("The AI provider's rate limit or quota was reached. Please try again in a minute."
+           if exc.status == 429 else "The AI provider is temporarily unavailable. Please try again.")
+    return JSONResponse({"detail": msg}, status_code=503, headers={"Retry-After": "60"})
 
 
 @app.get("/api/health", tags=["health"])

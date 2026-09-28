@@ -4,6 +4,14 @@ from typing import Optional, Protocol
 from ..schemas.identity import Candidate, IdentityInput, SourceRef
 
 
+class ProviderError(RuntimeError):
+    """The AI provider failed (quota, outage, bad response). `status` is the upstream HTTP status."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
 @dataclass
 class SearchSnippet:
     text: str

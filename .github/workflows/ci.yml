@@ -63,7 +63,12 @@ jobs:
         run: |
           moto_server -H 127.0.0.1 -p 19000 > /tmp/moto.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:19000/moto-api/ >/dev/null && break; sleep 1; done
-          python -m pytest -q tests/test_exporters.py -k real_object_lock -rs
+          if ! python -m pytest -q tests/test_exporters.py -k real_object_lock -rs --tb=short > /tmp/worm.txt 2>&1; then
+            cat /tmp/worm.txt
+            echo "::error title=worm test::$(tail -25 /tmp/worm.txt | tr -s '[:space:]' ' ')"
+            exit 1
+          fi
+          cat /tmp/worm.txt
         env:
           TEST_S3_ENDPOINT: "http://127.0.0.1:19000"
           AWS_ACCESS_KEY_ID: ciuser
@@ -71,7 +76,12 @@ jobs:
       - name: Evidence graph push into Neo4j
         run: |
           for i in $(seq 1 60); do curl -fs http://localhost:17474 >/dev/null && break; sleep 2; done
-          python -m pytest -q tests/test_graph_export.py -k real_neo4j -rs
+          if ! python -m pytest -q tests/test_graph_export.py -k real_neo4j -rs --tb=short > /tmp/neo.txt 2>&1; then
+            cat /tmp/neo.txt
+            echo "::error title=neo4j test::$(tail -25 /tmp/neo.txt | tr -s '[:space:]' ' ')"
+            exit 1
+          fi
+          cat /tmp/neo.txt
         env:
           TEST_NEO4J_URI: "bolt://localhost:17687"
           TEST_NEO4J_PASSWORD: ci-password-123

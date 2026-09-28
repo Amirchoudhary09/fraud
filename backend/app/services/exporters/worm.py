@@ -50,6 +50,7 @@ class WormExporter:
             Key=self.key(events),
             Body=body,
             ContentType="application/x-ndjson",
+            ChecksumAlgorithm="SHA256",  # S3 requires a checksum header for Object Lock uploads
             ChecksumSHA256=base64.b64encode(hashlib.sha256(body).digest()).decode(),
             ObjectLockMode="COMPLIANCE",
             ObjectLockRetainUntilDate=retain,

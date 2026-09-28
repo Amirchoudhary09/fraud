@@ -78,7 +78,7 @@ def test_worm_writes_compliance_locked_segments(monkeypatch, client, admin_h):
     with Stubber(s3) as stub:
         stub.add_response("put_object", {"ETag": '"x"'}, {
             "Bucket": "audit-worm", "Key": f"audit/{events[0]['seq']:012d}-{events[-1]['seq']:012d}.jsonl",
-            "Body": ANY, "ContentType": "application/x-ndjson", "ChecksumSHA256": ANY,
+            "Body": ANY, "ContentType": "application/x-ndjson", "ChecksumAlgorithm": "SHA256", "ChecksumSHA256": ANY,
             "ObjectLockMode": "COMPLIANCE", "ObjectLockRetainUntilDate": ANY,
             "Metadata": {"first-seq": "1", "last-seq": str(events[-1]["seq"]), "last-hash": events[-1]["hash"],
                          "prev-hash": audit_store.GENESIS},

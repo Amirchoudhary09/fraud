@@ -7,12 +7,13 @@
 """
 import json
 import re
+import time
 
 import httpx
 
 from ..schemas.identity import Candidate, Claim, IdentityInput, SourceRef
 from ..core.privacy import redact
-from .base import Judgement, SearchResult, SearchSnippet
+from .base import Judgement, ProviderError, SearchResult, SearchSnippet
 
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -106,10 +107,6 @@ Question: {question}"""
 EMBED_API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:batchEmbedContents"
 
 
-class ProviderError(RuntimeError):
-    pass
-
-
 def _text(data: dict) -> str:
     cand = (data.get("candidates") or [{}])[0]
     return "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []))
@@ -150,7 +147,7 @@ class GeminiProvider:
                                for t in texts]},
         )
         if resp.status_code != 200:
-            raise ProviderError(f"Gemini embedding error {resp.status_code}: {resp.text[:300]}")
+            raise ProviderError(f"Gemini embedding error {resp.status_code}: {resp.text[:300]}", status=resp.status_code)
         return [e.get("values", []) for e in resp.json().get("embeddings", [])]
 
     def judge(self, identity: IdentityInput, cand: Candidate) -> Judgement:
@@ -176,19 +173,26 @@ class GeminiProvider:
             "generationConfig": {"temperature": 0},
         })))
 
+    RETRY_DELAYS = (2.0, 6.0)  # seconds; only for rate limits / temporary unavailability
+
     def _call(self, body: dict) -> dict:
-        resp = self.client.post(
-            API.format(model=self.model),
-            headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
-            json=body,
-        )
-        if resp.status_code != 200:
-            try:
-                msg = resp.json().get("error", {}).get("message", resp.text)
-            except ValueError:
-                msg = resp.text
-            raise ProviderError(f"Gemini API error {resp.status_code}: {msg[:300]}")
-        return resp.json()
+        for attempt in range(len(self.RETRY_DELAYS) + 1):
+            resp = self.client.post(
+                API.format(model=self.model),
+                headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
+                json=body,
+            )
+            if resp.status_code == 200:
+                return resp.json()
+            if resp.status_code in (429, 503) and attempt < len(self.RETRY_DELAYS):
+                time.sleep(self.RETRY_DELAYS[attempt])
+                continue
+            break
+        try:
+            msg = resp.json().get("error", {}).get("message", resp.text)
+        except ValueError:
+            msg = resp.text
+        raise ProviderError(f"Gemini API error {resp.status_code}: {msg[:300]}", status=resp.status_code)
 
     def search(self, query: str) -> SearchResult:
         data = self._call({
