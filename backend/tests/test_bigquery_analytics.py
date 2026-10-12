@@ -55,3 +55,44 @@ def test_warehouse_endpoints_require_permissions(client, analyst_h, user_h):
     sync = client.post("/api/admin/warehouse/sync", headers=user_h)
     assert status.status_code == 403
     assert sync.status_code == 403
+
+
+def test_sync_uses_idempotent_merge_and_parameterized_query(monkeypatch):
+    class Job:
+        def result(self):
+            return None
+
+    class FakeClient:
+        def __init__(self):
+            self.sql = ""
+            self.job_config = None
+            self.location = None
+
+        def get_dataset(self, _dataset_id):
+            return type("Dataset", (), {"location": "US"})()
+
+        def get_table(self, _table_id):
+            return object()
+
+        def query(self, sql, job_config=None, location=None):
+            self.sql = sql
+            self.job_config = job_config
+            self.location = location
+            return Job()
+
+    fake = FakeClient()
+    monkeypatch.setattr(config, "BIGQUERY_PROJECT", "test-project")
+    monkeypatch.setattr(config, "BIGQUERY_DATASET", "fraud_analytics")
+    monkeypatch.setattr(config, "BIGQUERY_LOCATION", "US")
+    monkeypatch.setattr(bigquery_analytics, "_make_client", lambda: fake)
+
+    result = bigquery_analytics.sync_snapshot()
+    assert result["snapshot_date"]
+    assert "MERGE" in fake.sql
+    assert "WHEN MATCHED THEN UPDATE" in fake.sql
+    assert "WHEN NOT MATCHED THEN INSERT" in fake.sql
+    assert fake.location == "US"
+    parameter_names = {param.name for param in fake.job_config.query_parameters}
+    assert "snapshot_date" in parameter_names
+    assert "total_users" in parameter_names
+    assert "admin@test.local" not in fake.sql
