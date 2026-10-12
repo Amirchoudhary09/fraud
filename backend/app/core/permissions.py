@@ -14,13 +14,13 @@ PERMISSIONS: dict[str, set[str]] = {
     "analyst": _ALL_WORK | {"case.create", "incident.create", "evidence.capture"},
     "investigator": _ALL_WORK | {"case.create", "incident.create", "evidence.capture", "evidence.export",
                                  "case.share", "audit.view_case"},
-    "auditor": {"audit.view", "audit.verify", "security.view", "search.view_own"},
+    "auditor": {"audit.view", "audit.verify", "security.view", "search.view_own", "analytics.view"},
     "security_admin": {"users.manage", "audit.view", "audit.verify", "security.view", "security.manage",
-                       "break_glass.approve", "search.view_own"},
+                       "break_glass.approve", "search.view_own", "analytics.view", "analytics.sync"},
     "super_admin": _ALL_WORK | {"case.create", "incident.create", "evidence.capture", "evidence.export",
                                 "case.share", "audit.view_case", "audit.view", "audit.verify", "security.view",
                                 "security.manage", "users.manage", "break_glass.approve", "search.view_all",
-                                "case.view_all", "data.delete", "admin.evaluate"},
+                                "case.view_all", "data.delete", "admin.evaluate", "analytics.view", "analytics.sync"},
 }
 
 # Nobody holds these: the audit log cannot be edited or deleted through the application.
