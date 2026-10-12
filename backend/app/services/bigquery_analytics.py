@@ -165,7 +165,8 @@ def sync_snapshot(client=None) -> dict[str, Any]:
         WHEN MATCHED THEN UPDATE SET {assignments}
         WHEN NOT MATCHED THEN INSERT ({insert_columns}) VALUES ({insert_values})
     """
-    client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params),\n                 location=config.BIGQUERY_LOCATION).result()
+    client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params),
+                 location=config.BIGQUERY_LOCATION).result()
     return {
         key: value.isoformat() if isinstance(value, (date, datetime)) else value
         for key, value in snapshot.items()
