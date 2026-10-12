@@ -7,7 +7,7 @@ from ...core import audit_store, config
 from ...core.database import ago, in_future
 from ...evaluation import dataset, metrics
 from ...repositories import cases, evidence, incidents, searches, security_events, users
-from ...services import audit, calibration, exporters, retention
+from ...services import audit, bigquery_analytics, calibration, exporters, retention
 from ..deps import need
 from ..middleware import error_counts
 
@@ -43,6 +43,42 @@ def run_exports(_: dict = Depends(need("security.manage"))):
     exporters.run_all()
     audit.record("AUDIT_EXPORT_RUN")
     return exporters.status()
+
+
+# --- analytics warehouse ---------------------------------------------------------------
+
+@router.get("/warehouse/status")
+def warehouse_status(_: dict = Depends(need("analytics.view"))):
+    """Configuration-only status; does not call Google Cloud."""
+    return bigquery_analytics.status()
+
+
+@router.get("/warehouse/metrics")
+def warehouse_metrics(_: dict = Depends(need("analytics.view"))):
+    """Read aggregate daily snapshots from BigQuery."""
+    if not bigquery_analytics.is_configured():
+        return {"enabled": False, "rows": [], "message": bigquery_analytics.status()["message"]}
+    try:
+        rows = bigquery_analytics.latest_metrics(limit=30)
+        return {"enabled": True, "rows": rows, "message": None}
+    except Exception as exc:
+        audit.record("WAREHOUSE_READ_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
+        raise HTTPException(503, "BigQuery analytics could not be read. Check server logs and dataset permissions.")
+
+
+@router.post("/warehouse/sync")
+def sync_warehouse(_: dict = Depends(need("analytics.sync"))):
+    """Write one privacy-preserving, idempotent aggregate snapshot for the current UTC date."""
+    try:
+        snapshot = bigquery_analytics.sync_snapshot()
+    except bigquery_analytics.BigQueryNotConfigured as exc:
+        audit.record("WAREHOUSE_SYNC_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
+        raise HTTPException(503, str(exc))
+    except Exception as exc:
+        audit.record("WAREHOUSE_SYNC_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
+        raise HTTPException(503, "BigQuery sync failed. Check server logs, cloud credentials, and dataset permissions.")
+    audit.record("WAREHOUSE_SYNC_COMPLETED", detail={"snapshot_date": snapshot["snapshot_date"], "rows": 1})
+    return {"ok": True, "snapshot": snapshot}
 
 
 # --- security monitoring ---------------------------------------------------------------
