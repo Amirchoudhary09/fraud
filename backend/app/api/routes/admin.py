@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +13,7 @@ from ..deps import need
 from ..middleware import error_counts
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
 
 
 # --- audit plane -----------------------------------------------------------------------
@@ -62,6 +64,7 @@ def warehouse_metrics(_: dict = Depends(need("analytics.view"))):
         rows = bigquery_analytics.latest_metrics(limit=30)
         return {"enabled": True, "rows": rows, "message": None}
     except Exception as exc:
+        logger.exception("BigQuery analytics read failed")
         audit.record("WAREHOUSE_READ_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
         raise HTTPException(503, "BigQuery analytics could not be read. Check server logs and dataset permissions.")
 
@@ -75,6 +78,7 @@ def sync_warehouse(_: dict = Depends(need("analytics.sync"))):
         audit.record("WAREHOUSE_SYNC_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
         raise HTTPException(503, str(exc))
     except Exception as exc:
+        logger.exception("BigQuery analytics sync failed")
         audit.record("WAREHOUSE_SYNC_FAILED", result="FAILED", detail={"error_type": type(exc).__name__})
         raise HTTPException(503, "BigQuery sync failed. Check server logs, cloud credentials, and dataset permissions.")
     audit.record("WAREHOUSE_SYNC_COMPLETED", detail={"snapshot_date": snapshot["snapshot_date"], "rows": 1})
