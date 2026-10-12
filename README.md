@@ -349,3 +349,8 @@ These are infrastructure settings, not code.
   - A dedicated vector database (vectors are stored in SQLite today, and brute-force search is fine per investigation).
   - MongoDB (PostgreSQL is supported, see above).
 - [ ] **Evaluation numbers:** `eval/sample_dataset.json` is **synthetic**. Real accuracy figures need a labelled dataset from reviewed searches (`/api/admin/eval-dataset`).
+
+
+## Google BigQuery analytics
+
+The optional BigQuery warehouse stores privacy-preserving daily aggregate snapshots. It complements, rather than replaces, the operational SQLite/PostgreSQL database. Setup, IAM, deployment variables, daily scheduling, and verification steps are documented in [docs/BIGQUERY_ANALYTICS.md](docs/BIGQUERY_ANALYTICS.md). The implementation audit and explicit scope are in [docs/BIGQUERY_ANALYTICS_AUDIT.md](docs/BIGQUERY_ANALYTICS_AUDIT.md).
