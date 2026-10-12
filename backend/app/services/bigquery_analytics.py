@@ -50,7 +50,10 @@ def status() -> dict[str, Any]:
 
 def build_snapshot(now: datetime | None = None) -> dict[str, Any]:
     """Build a count-only snapshot from the operational DB without returning identifying data."""
-    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current = current.astimezone(timezone.utc)
     since = (current - timedelta(hours=24)).isoformat(timespec="seconds")
     with connect() as db:
         row = db.execute(
@@ -112,7 +115,13 @@ def _ensure_table(client) -> None:
 
     dataset_id = f"{config.BIGQUERY_PROJECT}.{config.BIGQUERY_DATASET}"
     try:
-        client.get_dataset(dataset_id)
+        dataset = client.get_dataset(dataset_id)
+        actual_location = (getattr(dataset, "location", None) or "").upper()
+        expected_location = (config.BIGQUERY_LOCATION or "").upper()
+        if actual_location and expected_location and actual_location != expected_location:
+            raise BigQueryNotConfigured(
+                f"BigQuery dataset location is {actual_location}, but BIGQUERY_LOCATION is {expected_location}."
+            )
     except bigquery.NotFound as exc:
         raise BigQueryNotConfigured(
             f"BigQuery dataset {dataset_id} does not exist. Create it in {config.BIGQUERY_LOCATION} first."
@@ -156,7 +165,7 @@ def sync_snapshot(client=None) -> dict[str, Any]:
         WHEN MATCHED THEN UPDATE SET {assignments}
         WHEN NOT MATCHED THEN INSERT ({insert_columns}) VALUES ({insert_values})
     """
-    client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params)).result()
+    client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params),\n                 location=config.BIGQUERY_LOCATION).result()
     return {
         key: value.isoformat() if isinstance(value, (date, datetime)) else value
         for key, value in snapshot.items()
@@ -172,8 +181,10 @@ def latest_metrics(limit: int = 30, client=None) -> list[dict[str, Any]]:
     safe_limit = max(1, min(int(limit), 90))
     rows = client.query(
         f"SELECT {', '.join(_field[0] for _field in _SCHEMA)} FROM `{_table_id()}` "
+        f"WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY) "
         f"ORDER BY snapshot_date DESC LIMIT {safe_limit}",
         job_config=bigquery.QueryJobConfig(use_query_cache=True),
+        location=config.BIGQUERY_LOCATION,
     ).result()
     output = []
     for row in rows:
