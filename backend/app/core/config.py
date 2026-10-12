@@ -95,6 +95,12 @@ WORM_S3_ENDPOINT = os.getenv("WORM_S3_ENDPOINT", "").strip()          # empty = 
 WORM_S3_REGION = os.getenv("WORM_S3_REGION", "").strip()
 WORM_RETENTION_DAYS = int(os.getenv("WORM_RETENTION_DAYS", "2555"))   # ~7 years
 
+# Google BigQuery (optional): aggregate-only analytics warehouse. Use ADC/workload identity or a
+# service-account JSON stored only in the deployment secret BIGQUERY_CREDENTIALS_JSON.
+BIGQUERY_PROJECT = os.getenv("BIGQUERY_PROJECT", "").strip()
+BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "fraud_analytics").strip()
+BIGQUERY_LOCATION = os.getenv("BIGQUERY_LOCATION", "US").strip()
+
 # Neo4j (optional): push evidence graphs to a graph database.
 NEO4J_URI = os.getenv("NEO4J_URI", "").strip()                        # e.g. neo4j+s://xxxx.databases.neo4j.io
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j").strip()
