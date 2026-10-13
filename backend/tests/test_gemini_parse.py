@@ -69,7 +69,7 @@ def test_api_error_is_reported():
 def test_json_parser_accepts_fenced_json_and_validates_object():
     p = GeminiProvider("k", "m")
     p._call = lambda body: {"candidates": [{"content": {"parts": [
-        {"text": "```json\\n{\\"name\\":\\"Amir Choudhary\\",\\"company\\":\\"WASP3D\\"}\\n```"}
+        {"text": '```json\n{"name":"Amir Choudhary","company":"WASP3D"}\n```' }
     ]}}]}
     out = p._json("extract")
     assert out == {"name": "Amir Choudhary", "company": "WASP3D"}
