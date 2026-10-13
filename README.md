@@ -11,38 +11,37 @@ A security-first, auditable platform for:
 
 ---
 
-## 🧑‍💻 Aapko khud kya karna hai (step-by-step checklist)
+## 🧑‍💻 Required Setup (Step-by-Step Checklist)
 
-Claude ki taraf se code ka kaam poora ho gaya hai: GitHub par sab push hai aur CI ke saare jobs pass hain.
-Neeche wale kaam aapke accounts ya passwords maangte hain, isliye yeh aapko khud karne honge. **Upar se neeche, isi kram mein karo.**
+The code changes have been pushed to GitHub. The following steps require access to your personal accounts or secrets, so you must complete them yourself. **Follow the steps in order, from top to bottom.**
 
-### A. Abhi turant (security, ~5 minute)
+### A. Immediate security steps (~5 minutes)
 
-- [ ] **1. Gemini API key badlo.** Purani key chat mein share ho chuki hai.
-  https://aistudio.google.com → **API keys** → purani key **Delete** → **Create API key** se nayi banao.
-  Nayi key kisi ko mat bhejo, kisi chat mein paste mat karo, aur GitHub par commit mat karo. Yeh sirf Railway Variables mein jayegi (step 5).
-- [ ] **2. Purane local folders delete karo.** Saara code GitHub par hai, isliye inki ab zaroorat nahi:
+- [ ] **1. Rotate your Gemini API key.** The previous key was shared in a chat.
+  Go to https://aistudio.google.com → **API keys** → delete the old key → select **Create API key** to generate a new one.
+  Never share the new key, paste it into chats, or commit it to GitHub. Add it only to Railway Variables (step 5).
+- [ ] **2. Remove obsolete local folders.** The code is available on GitHub, so these old folders are no longer needed:
   - `C:\Users\amir\AppData\Local\Temp\claude\C--Users-amir\8ed568c5-650d-49c1-a52f-c3fbafd020c1\scratchpad\work`: iski `backend\.env` mein purani key hai.
   - `C:\Users\amir\projects\identity-platform`: purana MVP.
 
-### B. Secrets banao (~3 minute)
+### B. Generate secrets (~3 minutes)
 
-- [ ] **3.** Apne computer par yeh 3 commands chalao aur teeno output kahin **safe** jagah save kar lo (password manager best hai):
+- [ ] **3.** Run these three commands on your computer and save all three outputs somewhere **secure** (a password manager is recommended):
   ```powershell
   python -c "import secrets;print(secrets.token_urlsafe(48))"                               # JWT_SECRET
   python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"  # EVIDENCE_KEY
   python -c "import secrets;print(secrets.token_urlsafe(32))"                               # IP_HASH_SALT
   ```
-  ⚠️ `EVIDENCE_KEY` kho gayi to saved evidence kabhi decrypt nahi hoga. Iska backup zaroor rakho.
-  (Doosri command ke liye `pip install cryptography` chahiye.)
+  ⚠️ If you lose `EVIDENCE_KEY`, stored evidence can never be decrypted. Keep a secure backup.
+  (The second command requires `pip install cryptography`.)
 
-### C. Railway par deploy (~10 minute)
+### C. Deploy to Railway (~10 minutes)
 
-- [ ] **4.** https://railway.com par login karo → **New Project** → **Deploy from GitHub repo** → `Amirchoudhary09/fraud` chuno.
-- [ ] **5. Backend service**
+- [ ] **4.** Sign in at https://railway.com → **New Project** → **Deploy from GitHub repo** → select `Amirchoudhary09/fraud`.
+- [ ] **5. Configure the backend service**
   - Settings → **Root Directory** = `backend`
   - Settings → **Volumes** → **Add Volume**, mount path `/data`
-  - **Public domain mat banana.** Backend sirf private network par rahega.
+  - **Do not create a public domain.** The backend should remain accessible only through the private network.
   - **Variables** mein yeh daalo:
     ```
     GEMINI_API_KEY=<step 1 wali nayi key>
@@ -54,26 +53,26 @@ Neeche wale kaam aapke accounts ya passwords maangte hain, isliye yeh aapko khud
     MAX_QUERIES=3
     MAX_JUDGED_CANDIDATES=2
     ```
-    Aakhri do lines Gemini free-tier limit mein rehne ke liye hain.
-- [ ] **6. Frontend service:** **+ New** → **GitHub Repo** → same repo
+    The final two settings help keep usage within Gemini's free-tier limits.
+- [ ] **6. Configure the frontend service:** **+ New** → **GitHub Repo** → select the same repository
   - Settings → **Root Directory** = `frontend`
   - Variables: `BACKEND_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:8000`, aur backend service mein `PORT=8000` bhi add karo.
   - Settings → Networking → **Generate Domain**. Yahi aapki app ka URL hai.
-- [ ] **7.** Deploy logs mein dono services "Active/healthy" dikhni chahiye. Na dikhein to **Deployments → View logs** dekho.
+- [ ] **7.** The deployment logs should show both services as "Active/healthy". If they do not, open **Deployments → View logs**.
 
-### D. Pehli baar app chalana (~5 minute)
+### D. First-time application setup (~5 minutes)
 
-- [ ] **8.** Frontend URL kholo → **Create the first account**. Yahi account `super_admin` banega. Strong password rakho (10+ characters).
-- [ ] **9.** **Account** page → **Set up MFA** → phone ke Google/Microsoft Authenticator se QR scan karo → code daal kar confirm karo.
-- [ ] **10.** **Admin** page se team members ke accounts banao, sabse kam zaroori role ke saath:
+- [ ] **8.** Open the frontend URL → **Create the first account**. This account becomes `super_admin`. Use a strong password of at least 10 characters.
+- [ ] **9.** Go to **Account** → **Set up MFA** → scan the QR code with Google Authenticator or Microsoft Authenticator on your phone → enter the code to confirm.
+- [ ] **10.** Create team member accounts from the **Admin** page and assign each person the least-privileged role they need:
   - `analyst`: cases/incidents
   - `investigator`: export
   - `auditor`: sirf audit log
   - `user`: sirf search
-- [ ] **11.** **Searches** mein apne naam se ek test search chalao. Mock-mode wala banner **nahi** dikhna chahiye, aur asli sources aane chahiye.
-- [ ] **12.** **Security → Audit log → Verify hash chain** dabao. "Chain intact" aana chahiye.
+- [ ] **11.** Run a test search for your own name in **Searches**. The mock-mode banner should **not** appear, and results should include real sources.
+- [ ] **12.** Select **Security → Audit log → Verify hash chain**. The result should say "Chain intact".
 
-### E. Recommended (baad mein, jab zaroorat ho)
+### E. Recommended follow-up steps
 
 - [ ] **13. Cloudflare (WAF/DDoS):**
   1. Domain Cloudflare par daalo.
@@ -97,16 +96,7 @@ Neeche wale kaam aapke accounts ya passwords maangte hain, isliye yeh aapko khud
 - ❌ Search result ko "proof of identity" maanna. Yeh sirf public evidence hai, final faisla insaan karega.
 - ❌ Private data maangna (phone number, ghar ka pata, ID numbers). App aisi requests block karti hai, aur yeh log bhi hoti hain.
 
-**Kuch atke to:** Railway logs, `GET /api/health` (frontend URL + `/api/health`) aur **Security** page dekho. Us page par security events aur errors dikhte hain.
-
----|------|------|
-| 1 | https://aistudio.google.com par apne Google account se login karo → **Get API key** → **Create API key** | Claude aapke Google account mein login nahi kar sakta. Key ke bina app **mock mode** (demo data) mein chalti hai |
-| 2 | `backend/.env.example` ko copy karke `backend/.env` banao aur `GEMINI_API_KEY=...` bharo | Real Google search + Gemini ke liye |
-| 3 | Production ke liye `JWT_SECRET`, `EVIDENCE_KEY`, `IP_HASH_SALT` generate karke set karo (commands `.env.example` mein hain) | Secrets code mein nahi rakhe jaate |
-| 4 | Railway par deploy: neeche **Deploy on Railway** dekho. `railway login` aapko khud karna hoga | Claude aapke Railway account mein login nahi kar sakta |
-| 5 | Pehli baar app kholne par **first account** banao. Wahi `super_admin` banta hai | Setup ke baad sirf admin hi naye users bana sakta hai |
-
----
+**Troubleshooting:** Check the Railway logs, `GET /api/health` (open the frontend URL followed by `/api/health`), and the **Security** page, which displays security events and errors.
 
 ## 📦 Repository layout
 
@@ -231,9 +221,9 @@ Open http://localhost:3000. The first account you create becomes `super_admin`.
 
 ---
 
-## 🚀 Deploy on Railway (aapko khud karna hai)
+## 🚀 Deploy on Railway (manual account setup required)
 
-Claude could not log in to your Railway account, so these steps are manual (~10 minutes). The repo is already set up for it: each service has a `Dockerfile` and a `railway.json` with a health check.
+These steps require access to your Railway account and must be completed manually (about 10 minutes). The repository is configured for deployment: each service has a `Dockerfile` and a `railway.json` health check.
 
 1. Go to https://railway.com, then **New Project → Deploy from GitHub repo → `Amirchoudhary09/fraud`**.
 2. Create the **backend** service:
@@ -296,19 +286,19 @@ These are infrastructure settings, not code.
 
 ## 🚧 Status / not done yet
 
-### ❌ Nahi bana: multi-platform "public footprint" (kisi insaan ke saare social accounts + history)
+### ❌ Not implemented: multi-platform public footprint (all of a person's social accounts and history)
 
-**Kya maanga gaya tha:** Kisi bhi insaan ke saare accounts (Instagram, Facebook, LinkedIn, X, YouTube, TikTok, Reddit, GitHub… ~40 platforms) ek jagah jodna, unke published links follow karke aur accounts dhoondhna, aur har account ki purani history (old usernames, old bios, posts, timeline) nikalna.
+**Original request:** Aggregate a person's accounts across around 40 platforms (Instagram, Facebook, LinkedIn, X, YouTube, TikTok, Reddit, GitHub, and others), follow published links to discover more accounts, and retrieve historical account details such as old usernames, bios, posts, and timelines.
 
-**Kyun nahi bana:**
-- **Stalking ka khatra:** Kisi insaan ke saare accounts aur unki history ek jagah jodna ek poori personal dossier bana deta hai. Aisi dossier ka sabse aam galat istemaal stalking, doxxing aur harassment hai, aur jis insaan ko search kiya gaya use pata bhi nahi hota.
-- **Platforms ke Terms aur login walls:** Instagram, Facebook, LinkedIn aur Snapchat ka zyada tar data login ke peeche hai, aur unke Terms scraping mana karte hain.
-- **Kanooni risk:** India ke DPDP Act 2023 ke tehat kisi ki personal information ka is tarah bina consent collection aur profiling legal risk hai.
+**Why this was not implemented:**
+- **Stalking risk:** Aggregating someone's accounts and history into one place creates a detailed personal dossier. It could be misused for stalking, doxxing, or harassment without the person's knowledge.
+- **Platform terms and login restrictions:** Much of the data on Instagram, Facebook, LinkedIn, and Snapchat is behind login walls, and their terms restrict scraping.
+- **Legal risk:** Collecting and profiling personal information in this way without consent may create legal risks under India's Digital Personal Data Protection Act, 2023.
 - **Code revert kiya:** Ek version (commit `a782b7f`) bana kar push hua tha, lekin use commit `2fbd034` se revert kar diya gaya. Woh code history mein hai, lekin app mein active nahi hai.
 
-**App abhi kya karti hai (standard mode):** Naam + clues se public web par sabse relevant public profiles dhoondhti hai. Har claim ke saath source hota hai, "Why this score?" hota hai, contradictions dikhte hain, aur faisla insaan leta hai. Harassment cases mein kisi incident ke author ki public profile case ke andar dhoondhi ja sakti hai. Yeh audit log mein record hota hai aur platform/police report ke liye hota hai.
+**Current standard-mode behavior:** The app uses a name and other clues to find relevant public profiles on the public web. Each claim includes a source, the interface explains "Why this score?", and contradictions are shown for human review. In harassment cases, investigators can search for an incident author's public profile from within the case. This action is recorded in the audit log and can support platform or law-enforcement reports.
 
-### ✅ / ⏳ Baaki status
+### ✅ / ⏳ Remaining status
 
 - [x] Backend: every feature listed above, with 70 automated tests.
 - [x] Frontend: every page listed above. `next build` passes. End-to-end checked locally: setup → httpOnly refresh cookie → refresh → search through the proxy → PDF → logout.
