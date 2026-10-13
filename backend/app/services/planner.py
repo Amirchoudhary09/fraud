@@ -34,8 +34,10 @@ def plan_queries(identity: IdentityInput, max_queries: int = 4) -> list[str]:
 
     # Reserve early query slots for different kinds of sites; don't spend the full budget
     # repeatedly querying the same professional networks.
-    queries.append(f'{name} ({SOURCE_GROUPS[0]})')
-    queries.append(f'{name} ({SOURCE_GROUPS[1]})')
+    # Keep familiar platform keywords for search engines and existing query consumers,
+    # while retaining domain hints for broader source diversity.
+    queries.append(f'{name} linkedin OR github OR gitlab OR stackoverflow ({SOURCE_GROUPS[0]})')
+    queries.append(f'{name} instagram OR facebook OR x.com OR twitter OR threads ({SOURCE_GROUPS[1]})')
     queries.extend(f'{name} ({group})' for group in SOURCE_GROUPS[2:])
     if identity.username:
         queries.append(f'"{identity.username}" public profile OR portfolio OR website')
