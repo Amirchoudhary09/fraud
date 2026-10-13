@@ -64,3 +64,46 @@ def test_api_error_is_reported():
         assert "API key not valid" in str(e)
     else:
         raise AssertionError("expected error")
+
+
+def test_json_parser_accepts_fenced_json_and_validates_object():
+    p = GeminiProvider("k", "m")
+    p._call = lambda body: {"candidates": [{"content": {"parts": [
+        {"text": '```json\n{"name":"Amir Choudhary","company":"WASP3D"}\n```' }
+    ]}}]}
+    out = p._json("extract")
+    assert out == {"name": "Amir Choudhary", "company": "WASP3D"}
+
+
+def test_json_parser_reports_empty_or_unstructured_model_output():
+    from app.providers.base import ProviderError
+
+    p = GeminiProvider("k", "m")
+    p._call = lambda body: {"candidates": [{"content": {"parts": [{"text": "I cannot provide JSON."}]}}]}
+    try:
+        p._json("extract")
+    except ProviderError as exc:
+        assert "non-JSON response" in str(exc)
+    else:
+        raise AssertionError("expected a structured-output error")
+
+    p._call = lambda body: {"candidates": [{"content": {"parts": []}, "finishReason": "SAFETY"}]}
+    try:
+        p._json("extract")
+    except ProviderError as exc:
+        assert "no text" in str(exc)
+    else:
+        raise AssertionError("expected an empty-output error")
+
+
+def test_parse_identity_prompt_extracts_explicit_fields():
+    p = GeminiProvider("k", "m")
+    p._call = lambda body: {"candidates": [{"content": {"parts": [{
+        "text": json.dumps({"name": "Amir Choudhary", "company": "WASP3D",
+                            "college": "GLBITM", "role": "Software Developer",
+                            "location": "Noida", "username": None})
+    }]}}]}
+    identity = p.parse_identity_prompt("Find Amir Choudhary, a Software Developer at WASP3D from GLBITM in Noida.")
+    assert identity.name == "Amir Choudhary"
+    assert identity.company == "WASP3D"
+    assert identity.college == "GLBITM"

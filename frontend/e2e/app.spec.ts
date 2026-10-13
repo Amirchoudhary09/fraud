@@ -51,6 +51,20 @@ test("public identity search: candidates, why-score, graph and ask", async ({ pa
     "Find public professional profiles for Amir Choudhary, a software developer at WASP3D who studied at GLBITM."
   );
   await page.getByRole("checkbox").check();
+  // CI intentionally runs the backend in mock mode (no Gemini key). Stub only the
+  // extraction boundary so this test validates the review -> confirm -> search UI flow.
+  await page.route("**/api/searches/parse", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        name: "Amir Choudhary",
+        company: "WASP3D",
+        college: "GLBITM",
+        role: "Software Developer",
+      }),
+    });
+  });
   await page.getByRole("button", { name: "Understand my search" }).click();
   await expect(page.getByRole("heading", { name: "AI extracted these search details" })).toBeVisible();
   await expect(page.getByText("WASP3D")).toBeVisible();
