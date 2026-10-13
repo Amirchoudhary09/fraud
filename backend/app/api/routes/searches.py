@@ -1,4 +1,5 @@
 import hashlib
+import logging
 
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +17,7 @@ from ..access import case_access, search_access
 from ..deps import deny, need
 
 router = APIRouter(prefix="/api/searches", tags=["searches"])
+logger = logging.getLogger(__name__)
 
 
 class SearchPrompt(BaseModel):
@@ -33,7 +35,24 @@ def parse_search_prompt(req: SearchPrompt, user: dict = Depends(need("search.cre
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except ProviderError as exc:
-        raise HTTPException(502, "AI could not extract the request. Check the Gemini API configuration and try again.") from exc
+        # Keep the full provider diagnostic in server logs only; never expose upstream
+        # response bodies or secrets to the browser.
+        logger.warning("Gemini prompt extraction failed (status=%s): %s",
+                       exc.status, str(exc)[:300])
+        if exc.status in (400, 403, 404):
+            detail = "Gemini rejected the request. Verify GEMINI_API_KEY, API access, and GEMINI_MODEL in Render."
+            status_code = 502
+        elif exc.status == 429:
+            detail = "Gemini quota or rate limit reached. Wait a minute and try again."
+            status_code = 503
+        elif exc.status is not None and exc.status >= 500:
+            detail = "Gemini is temporarily unavailable. Please try again shortly."
+            status_code = 503
+        else:
+            detail = "Gemini returned an unreadable response. Try a shorter request; if it repeats, check Render logs."
+            status_code = 502
+        headers = {"Retry-After": "60"} if status_code == 503 else None
+        raise HTTPException(status_code, detail, headers=headers) from exc
     audit.record("SEARCH_PROMPT_PARSED", detail={"fields_found": [k for k, v in identity.model_dump().items() if v]})
     return identity.model_dump(exclude_none=True)
 
