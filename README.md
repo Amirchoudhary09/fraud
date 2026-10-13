@@ -123,7 +123,7 @@ backend/                    FastAPI API (Python 3.12)
     reports/                report builder -> HTML and PDF renderers
     evaluation/             metrics (precision/recall/F1/FMR/ECE/Brier), dataset from feedback
     workers/                background job queue
-  tests/                    70 tests (mock mode, no network)
+  tests/                    backend test suite (mock mode, no network)
   eval/sample_dataset.json  SYNTHETIC labelled data for the evaluation pipeline
 frontend/                   Next.js 16 + TypeScript UI (backend-for-frontend proxy at /api/*)
 ```
@@ -205,7 +205,7 @@ Next.js 16 + TypeScript. Details are in [frontend/README.md](frontend/README.md)
 # backend (http://localhost:8000, API docs at /docs)
 cd backend
 .\run.ps1
-.\.venv\Scripts\python.exe -m pytest -q          # 70 tests, mock mode, no network
+.\.venv\Scripts\python.exe -m pytest -q          # backend tests, mock mode, no network
 
 # frontend (http://localhost:3000); needs Node 20+
 cd frontend
