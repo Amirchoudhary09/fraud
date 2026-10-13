@@ -42,9 +42,18 @@ export default function EvidenceGraph({ graph }: { graph: Graph }) {
           return (
             <g key={n.id}>
               <circle cx={p.x} cy={p.y} r={n.type === "Candidate" || n.type === "Target" ? 8 : 6} fill={COLOR[n.type] ?? "#888"} />
-              <text x={left ? p.x - 12 : p.x + 12} y={p.y + 3} textAnchor={left ? "end" : "start"}>
-                {short(n.label)}{n.score != null ? ` (${n.score})` : ""}
-              </text>
+              {n.url && /^https?:\/\//i.test(n.url) ? (
+                <a href={n.url} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open public profile for ${n.label}`}>
+                  <text x={left ? p.x - 12 : p.x + 12} y={p.y + 3} textAnchor={left ? "end" : "start"}
+                    style={{ cursor: "pointer", textDecoration: "underline" }}>
+                    {short(n.label)}{n.score != null ? ` (${n.score})` : ""}
+                  </text>
+                </a>
+              ) : (
+                <text x={left ? p.x - 12 : p.x + 12} y={p.y + 3} textAnchor={left ? "end" : "start"}>
+                  {short(n.label)}{n.score != null ? ` (${n.score})` : ""}
+                </text>
+              )}
               <title>{n.type}: {n.label}{n.url ? `\n${n.url}` : ""}</title>
             </g>
           );
