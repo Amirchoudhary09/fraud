@@ -1,17 +1,12 @@
-"""Search planner for broad, source-diverse public-web discovery.
-
-Queries cover the open web rather than assuming every service has a dedicated API.
-Search results are still limited to publicly accessible, source-cited information.
-"""
+"""Search planner for broad, source-diverse public-web discovery."""
 from ..schemas.identity import IdentityInput
 
-# Domain groups encourage Google Search grounding to look beyond one professional network.
-# They are query hints, not a promise that every platform will return results.
+# Domain groups are query hints, not dedicated integrations or coverage guarantees.
 SOURCE_GROUPS = (
     'site:linkedin.com OR site:github.com OR site:gitlab.com OR site:stackoverflow.com',
     'site:instagram.com OR site:facebook.com OR site:x.com OR site:twitter.com OR site:threads.net',
     'site:youtube.com OR site:tiktok.com OR site:reddit.com OR site:pinterest.com OR site:medium.com OR site:quora.com',
-    'site:personal website OR site:blog OR site:news OR site:conference OR site:university',
+    'portfolio OR "personal website" OR blog OR news OR conference OR university',
 )
 
 
@@ -27,34 +22,32 @@ def _unique(queries: list[str], limit: int | None = None) -> list[str]:
 
 
 def plan_queries(identity: IdentityInput, max_queries: int = 4) -> list[str]:
-    """Build an initial mix of identity clues and broad source/domain coverage."""
+    """Mix identity clues with diverse public-web sources within the query budget."""
     name = f'"{identity.name}"'
     anchors = [a for a in (identity.company, identity.college, identity.role, identity.location) if a]
     queries: list[str] = []
 
-    if identity.username:
-        queries.append(f'"{identity.username}"')
-    if anchors:
-        queries.append(name + " " + " ".join(f'"{a}"' if " " in a else a for a in anchors[:3]))
+    clue_parts = [f'"{identity.username}"' if identity.username else "", name]
+    clue_parts.extend(f'"{a}"' if " " in a else a for a in anchors[:2])
+    queries.append(" ".join(part for part in clue_parts if part))
+    queries.append(f'{name} public profile OR portfolio OR biography')
 
-    # Keep some searches domain-agnostic: useful sources may be on sites not listed here.
-    queries.append(name + " public profile OR portfolio OR biography")
+    # Reserve early query slots for different kinds of sites; don't spend the full budget
+    # repeatedly querying the same professional networks.
+    queries.append(f'{name} ({SOURCE_GROUPS[0]})')
+    queries.append(f'{name} ({SOURCE_GROUPS[1]})')
+    queries.extend(f'{name} ({group})' for group in SOURCE_GROUPS[2:])
     if identity.username:
         queries.append(f'"{identity.username}" public profile OR portfolio OR website')
-
-    # Mix in different platform groups as the budget permits, instead of repeatedly searching
-    # only LinkedIn/GitHub. Google Search grounding may return any additional relevant domains.
-    queries.extend(f'{name} ({group})' for group in SOURCE_GROUPS)
     if identity.company:
         queries.append(f'{name} "{identity.company}" public profile')
     if identity.college:
         queries.append(f'{name} "{identity.college}" profile OR portfolio')
-
     return _unique(queries, max_queries)
 
 
 def broaden_queries(identity: IdentityInput) -> list[str]:
-    """Second-round queries broaden beyond the first round and diversify public sources."""
+    """Second-round queries broaden the first round and include more public source types."""
     name = f'"{identity.name}"'
     queries = [
         name,
