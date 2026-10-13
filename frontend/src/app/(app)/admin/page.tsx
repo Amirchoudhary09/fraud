@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Badge, ErrorText, Spinner, fmtTime } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { ROLES, type Role, type User } from "@/lib/types";
+import { ROLES, type Role, type User, type WarehouseMetricsResponse, type WarehouseStatus } from "@/lib/types";
 
 export default function AdminPage() {
   const { can, user: me } = useAuth();
@@ -12,10 +12,21 @@ export default function AdminPage() {
   const [threshold, setThreshold] = useState(75);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [warehouseStatus, setWarehouseStatus] = useState<WarehouseStatus | null>(null);
+  const [warehouseMetrics, setWarehouseMetrics] = useState<WarehouseMetricsResponse | null>(null);
+  const [warehouseSyncing, setWarehouseSyncing] = useState(false);
 
   const loadUsers = useCallback(() => { if (can("users.manage")) api.users().then(setUsers).catch(setError); }, [can]);
   useEffect(loadUsers, [loadUsers]);
   useEffect(() => { if (can("admin.evaluate")) api.evaluation(threshold).then(setEvalData).catch(setError); }, [can, threshold]);
+
+  const loadWarehouse = useCallback(() => {
+    if (!can("analytics.view")) return;
+    Promise.all([api.warehouseStatus(), api.warehouseMetrics()])
+      .then(([status, metrics]) => { setWarehouseStatus(status); setWarehouseMetrics(metrics); })
+      .catch(setError);
+  }, [can]);
+  useEffect(loadWarehouse, [loadWarehouse]);
 
   async function createUser(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,6 +46,57 @@ export default function AdminPage() {
       <h1>Administration</h1>
       <ErrorText error={error} />
       {msg && <div className="banner info">{msg}</div>}
+
+      {can("analytics.view") && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>BigQuery analytics warehouse</h2>
+          <p className="muted small">
+            Historical, count-only snapshots for operational analytics. No identities, search inputs, profile URLs,
+            evidence content, emails, or case IDs are exported.
+          </p>
+          <p>
+            Status: {warehouseStatus?.enabled
+              ? <Badge value="configured" tone="good" />
+              : <Badge value="setup required" />}
+            {warehouseStatus?.dataset && <span className="muted small"> · Dataset: {warehouseStatus.dataset} · {warehouseStatus.location}</span>}
+          </p>
+          {!warehouseStatus ? <Spinner /> : <p className="muted small">{warehouseStatus.message}</p>}
+          <div className="row">
+            {can("analytics.sync") && <button className="primary" disabled={!warehouseStatus?.enabled || warehouseSyncing}
+              onClick={() => {
+                setWarehouseSyncing(true);
+                api.syncWarehouse().then((r) => {
+                  setMsg(`BigQuery snapshot synced for ${r.snapshot.snapshot_date}.`);
+                  loadWarehouse();
+                }).catch(setError).finally(() => setWarehouseSyncing(false));
+              }}>
+              {warehouseSyncing ? "Syncing…" : "Sync aggregate snapshot"}
+            </button>}
+            <button onClick={loadWarehouse}>Refresh analytics</button>
+          </div>
+          {warehouseStatus?.enabled && warehouseMetrics?.rows.length === 0 && (
+            <p className="muted small">No snapshots yet. Run a sync after creating the BigQuery dataset and granting the service account access.</p>
+          )}
+          {!!warehouseMetrics?.rows.length && (
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table>
+                <thead><tr><th>Snapshot (UTC)</th><th>Users</th><th>Cases</th><th>Searches</th><th>Incidents</th><th>Evidence</th><th>Feedback</th></tr></thead>
+                <tbody>{warehouseMetrics.rows.slice(0, 7).map((row) => (
+                  <tr key={row.snapshot_date}>
+                    <td>{row.snapshot_date}<div className="muted small">{fmtTime(row.generated_at)}</div></td>
+                    <td>{row.active_users}/{row.total_users} active</td>
+                    <td>{row.open_cases} open / {row.total_cases} total</td>
+                    <td>{row.completed_searches} completed<div className="muted small">{row.searches_24h} in 24h</div></td>
+                    <td>{row.open_incidents} open / {row.total_incidents} total</td>
+                    <td>{row.total_evidence}<div className="muted small">{row.evidence_24h} in 24h</div></td>
+                    <td>{row.total_feedback}<div className="muted small">{row.feedback_24h} in 24h</div></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {can("users.manage") && (
         <div className="card">

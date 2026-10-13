@@ -130,3 +130,37 @@ export const PURPOSES: Record<Purpose, string> = {
   research: "Research / testing",
 };
 export const ROLES: Role[] = ["super_admin", "security_admin", "investigator", "analyst", "auditor", "user"];
+
+
+export interface WarehouseStatus {
+  enabled: boolean;
+  dataset: string | null;
+  location: string | null;
+  table: string | null;
+  message: string;
+}
+export interface WarehouseMetric {
+  snapshot_date: string;
+  generated_at: string;
+  total_users: number;
+  active_users: number;
+  total_cases: number;
+  open_cases: number;
+  closed_cases: number;
+  total_searches: number;
+  completed_searches: number;
+  failed_searches: number;
+  running_searches: number;
+  searches_24h: number;
+  total_incidents: number;
+  open_incidents: number;
+  total_evidence: number;
+  evidence_24h: number;
+  total_feedback: number;
+  feedback_24h: number;
+}
+export interface WarehouseMetricsResponse {
+  enabled: boolean;
+  rows: WarehouseMetric[];
+  message: string | null;
+}

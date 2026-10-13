@@ -3,7 +3,7 @@
 import type {
   AdminDashboard, Answer, AuditEvent, BreakGlass, Case, Evidence, EvidenceGraph, Health, Identity, Incident,
   IncidentType, LoginResult, Member, MyDashboard, Purpose, Role, Search, SecurityEvent, Session, TimelineItem,
-  User, Verdict,
+  User, Verdict, WarehouseMetric, WarehouseMetricsResponse, WarehouseStatus,
 } from "./types";
 
 let accessToken: string | null = null;
@@ -155,4 +155,7 @@ export const api = {
   evaluation: (threshold: number) => request<Record<string, unknown>>(`/api/admin/evaluation?threshold=${threshold}`),
   calibrate: (method: "platt" | "isotonic") => request<Record<string, unknown>>("/api/admin/calibrate", json("POST", { method })),
   purge: () => request<Record<string, number>>("/api/admin/retention/purge", json("POST")),
+  warehouseStatus: () => request<WarehouseStatus>("/api/admin/warehouse/status"),
+  warehouseMetrics: () => request<WarehouseMetricsResponse>("/api/admin/warehouse/metrics"),
+  syncWarehouse: () => request<{ ok: boolean; snapshot: WarehouseMetric }>("/api/admin/warehouse/sync", json("POST")),
 };
