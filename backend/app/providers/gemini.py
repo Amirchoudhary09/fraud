@@ -123,14 +123,31 @@ class GeminiProvider:
         self.client = httpx.Client(timeout=timeout)
 
     def _json(self, prompt: str) -> dict:
-        raw = _text(self._call({
+        data = self._call({
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
-        }))
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise ProviderError(f"Could not parse model JSON output: {e}") from e
+        })
+        raw = _text(data).strip()
+        if not raw:
+            candidate = (data.get("candidates") or [{}])[0]
+            reason = candidate.get("finishReason") or data.get("promptFeedback", {}).get("blockReason")
+            raise ProviderError(f"Gemini returned no text for JSON output (reason={reason or 'unknown'}).")
+
+        # Some model/proxy responses still wrap JSON in Markdown fences. Be tolerant of
+        # that formatting without relaxing the schema validation performed by each caller.
+        cleaned = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", raw, flags=re.I)
+        attempts = [cleaned]
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start >= 0 and end > start:
+            attempts.append(cleaned[start:end + 1])
+        for candidate_text in attempts:
+            try:
+                parsed = json.loads(candidate_text)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+        raise ProviderError("Gemini returned a non-JSON response when structured JSON was required.")
 
     def parse_identity_prompt(self, prompt: str) -> IdentityInput:
         """Convert one natural-language request into explicit identity search hints."""
