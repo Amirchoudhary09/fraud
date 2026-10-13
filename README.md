@@ -123,7 +123,7 @@ backend/                    FastAPI API (Python 3.12)
     reports/                report builder -> HTML and PDF renderers
     evaluation/             metrics (precision/recall/F1/FMR/ECE/Brier), dataset from feedback
     workers/                background job queue
-  tests/                    70 tests (mock mode, no network)
+  tests/                    backend test suite (mock mode, no network)
   eval/sample_dataset.json  SYNTHETIC labelled data for the evaluation pipeline
 frontend/                   Next.js 16 + TypeScript UI (backend-for-frontend proxy at /api/*)
 ```
@@ -205,7 +205,7 @@ Next.js 16 + TypeScript. Details are in [frontend/README.md](frontend/README.md)
 # backend (http://localhost:8000, API docs at /docs)
 cd backend
 .\run.ps1
-.\.venv\Scripts\python.exe -m pytest -q          # 70 tests, mock mode, no network
+.\.venv\Scripts\python.exe -m pytest -q          # backend tests, mock mode, no network
 
 # frontend (http://localhost:3000); needs Node 20+
 cd frontend
@@ -296,7 +296,7 @@ These are infrastructure settings, not code.
 - **Legal risk:** Collecting and profiling personal information in this way without consent may create legal risks under India's Digital Personal Data Protection Act, 2023.
 - **Code revert kiya:** Ek version (commit `a782b7f`) bana kar push hua tha, lekin use commit `2fbd034` se revert kar diya gaya. Woh code history mein hai, lekin app mein active nahi hai.
 
-**Current standard-mode behavior:** The app uses a name and other clues to find relevant public profiles on the public web. Each claim includes a source, the interface explains "Why this score?", and contradictions are shown for human review. In harassment cases, investigators can search for an incident author's public profile from within the case. This action is recorded in the audit log and can support platform or law-enforcement reports.
+**Current standard-mode behavior:** The app uses a name and other clues to search broadly across the public web. Query planning mixes identity clues with domain-diverse searches covering professional networks, social networks, code-hosting sites, video platforms, forums, blogs, news, portfolios, and other websites. This is web discovery through Google Search grounding, not a dedicated integration with every platform, so coverage depends on what is publicly indexed and returned. Each claim includes a source, the interface explains "Why this score?", and contradictions are shown for human review. In harassment cases, investigators can search for an incident author's public profile from within the case. This action is recorded in the audit log and can support platform or law-enforcement reports.
 
 ### ✅ / ⏳ Remaining status
 
