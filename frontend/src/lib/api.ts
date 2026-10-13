@@ -94,6 +94,7 @@ export const api = {
   searches: (opts: { caseId?: string; all?: boolean } = {}) =>
     request<Search[]>(`/api/searches${opts.caseId ? `?case_id=${opts.caseId}` : opts.all ? "?scope=all" : ""}`),
   search: (id: string) => request<Search>(`/api/searches/${id}`),
+  parseSearchPrompt: (prompt: string) => request<Identity>("/api/searches/parse", json("POST", { prompt })),
   createSearch: (identity: Identity, purpose: Purpose, caseId?: string) =>
     request<{ id: string }>("/api/searches", json("POST", { identity, purpose, acknowledged: true, case_id: caseId })),
   deleteSearch: (id: string) => request(`/api/searches/${id}`, json("DELETE")),

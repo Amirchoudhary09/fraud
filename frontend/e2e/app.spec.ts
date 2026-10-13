@@ -47,11 +47,14 @@ test("first account setup creates the super admin", async ({ page }) => {
 test("public identity search: candidates, why-score, graph and ask", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Searches", exact: true }).click();
-  await page.getByLabel("Name *").fill("Amir Choudhary");
-  await page.getByLabel("Company").fill("WASP3D");
-  await page.getByLabel("College").fill("GLBITM");
+  await page.getByLabel("Describe who you want to find").fill(
+    "Find public professional profiles for Amir Choudhary, a software developer at WASP3D who studied at GLBITM."
+  );
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Start search" }).click();
+  await page.getByRole("button", { name: "Understand my search" }).click();
+  await expect(page.getByRole("heading", { name: "AI extracted these search details" })).toBeVisible();
+  await expect(page.getByText("WASP3D")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm and start search" }).click();
 
   await expect(page.getByRole("tab", { name: /Candidates \(3\)/ })).toBeVisible();
   await page.getByText(/^Why \d+\?$/).first().click();
