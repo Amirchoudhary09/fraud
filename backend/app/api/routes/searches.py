@@ -1,5 +1,6 @@
 import hashlib
 
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
@@ -8,11 +9,33 @@ from ...providers import get_provider
 from ...reports import builder, html, pdf
 from ...repositories import reports, searches
 from ...schemas.identity import FeedbackRequest, InvestigationRequest, Question
+from ...providers.gemini import GeminiProvider
+from ...providers.base import ProviderError
 from ...services import audit, graph, graph_export, intake, rag
 from ..access import case_access, search_access
 from ..deps import deny, need
 
 router = APIRouter(prefix="/api/searches", tags=["searches"])
+
+
+class SearchPrompt(BaseModel):
+    prompt: str = Field(min_length=3, max_length=1000)
+
+
+@router.post("/parse")
+def parse_search_prompt(req: SearchPrompt, user: dict = Depends(need("search.create"))):
+    """Parse a natural-language search request into explicit identity hints; no search is started here."""
+    provider = get_provider()
+    if not isinstance(provider, GeminiProvider):
+        raise HTTPException(503, "AI extraction is unavailable while the backend is in mock mode. Configure GEMINI_API_KEY.")
+    try:
+        identity = provider.parse_identity_prompt(req.prompt)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(502, "AI could not extract the request. Check the Gemini API configuration and try again.") from exc
+    audit.record("SEARCH_PROMPT_PARSED", detail={"fields_found": [k for k, v in identity.model_dump().items() if v]})
+    return identity.model_dump(exclude_none=True)
 
 
 def _completed(user: dict, search_id: str) -> dict:
