@@ -28,10 +28,9 @@ _TAG_RE = re.compile(r"</?\s*untrusted_data[^>]*>", re.I)
 def fence(text: str) -> str:
     return "<untrusted_data>\n" + _TAG_RE.sub("", text) + "\n</untrusted_data>"
 
-SEARCH_PROMPT = """Use Google Search to find PUBLICLY available professional information for: {query}
+SEARCH_PROMPT = """Use Google Search to discover relevant PUBLICLY available information and profiles for: {query}
 
-List each distinct person or public profile you find. For each, state only what public
-sources say: full name, platform/website, company, college/university, job role, city.
+Search broadly across the open web, including social networks, professional networks, code-hosting sites, video platforms, forums, blogs, news, portfolios, public directories, and personal websites. List each distinct relevant public profile or source you find. For each, state only what public sources say: full name, platform/website, public username, company, college/university, job role, city, or other directly relevant non-sensitive public context.
 If sources disagree, mention both. Never include phone numbers, email addresses,
 home addresses, government ID numbers, or anything from private accounts."""
 
